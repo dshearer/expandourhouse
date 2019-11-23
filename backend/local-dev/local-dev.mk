@@ -16,7 +16,7 @@ help:
 run: env
 	docker build -t "${DOCKER_IMAGE}" .
 	docker container kill "${DOCKER_IMAGE}" 2>/dev/null ||:
-	docker run -it --name "${DOCKER_IMAGE}" --network local-dev_house --rm "${DOCKER_IMAGE}"
+	docker run ${DOCKER_OPTS} --name "${DOCKER_IMAGE}" --network local-dev_house --rm "${DOCKER_IMAGE}"
 
 .PHONY:
 logs:
