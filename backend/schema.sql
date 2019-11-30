@@ -3,26 +3,35 @@ CREATE TABLE IF NOT EXISTS source(
     name VARCHAR(255) NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS congress(
+    nbr INTEGER NOT NULL PRIMARY KEY, /* E.g., 115 for 115th */
+    start_year INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS house_district(
     id SERIAL NOT NULL PRIMARY KEY,
     state VARCHAR(2) NOT NULL, /* Two-digit state FIPS code */
     district VARCHAR(2) NOT NULL, /* E.g., '02' for 2nd */
-    congress INTEGER NOT NULL,   /* E.g., 115 for 115th */
-    pop INTEGER,
-    pop_moe INTEGER, /* Margin of error */
-    cvap INTEGER,
-    cvap_moe INTEGER, /* Margin of error */
-    pop_source INTEGER REFERENCES source(id) ON DELETE CASCADE,
-    cvap_source INTEGER REFERENCES source(id) ON DELETE CASCADE,
+    congress_nbr INTEGER NOT NULL REFERENCES congress(nbr) ON DELETE RESTRICT,
 
-    CONSTRAINT state_district_congress_unique UNIQUE (state, district, congress)
+    CONSTRAINT state_district_congress_unique UNIQUE (state, district, congress_nbr)
+);
+
+CREATE TABLE IF NOT EXISTS house_district_pop(
+    house_district_id INTEGER NOT NULL REFERENCES house_district(id) ON DELETE CASCADE,
+    type VARCHAR(16) NOT NULL, /* 'all', 'adults', 'citizens', or 'cvap' */
+    value INTEGER NOT NULL,
+    margin_of_error INTEGER NOT NULL,
+    source_id INTEGER NOT NULL REFERENCES source(id) ON DELETE RESTRICT,
+
+    CONSTRAINT house_district_pop_unique UNIQUE (house_district_id, type)
 );
 
 CREATE TABLE IF NOT EXISTS house_district_turnout(
-    id SERIAL NOT NULL PRIMARY KEY,
-    house_district_id INTEGER REFERENCES house_district(id) ON DELETE CASCADE,
-    num_votes INTEGER NOT NULL,
-    month INTEGER NOT NULL,
+    house_district_id INTEGER NOT NULL REFERENCES house_district(id) ON DELETE CASCADE,
     year INTEGER NOT NULL,
-    source INTEGER REFERENCES source(id) ON DELETE RESTRICT
+    num_votes INTEGER NOT NULL,
+    source_id INTEGER NOT NULL REFERENCES source(id) ON DELETE RESTRICT,
+
+    CONSTRAINT house_district_turnout_unique UNIQUE (house_district_id, year)
 );

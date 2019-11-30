@@ -18,17 +18,20 @@ run: env
 	docker container kill "${DOCKER_IMAGE}" 2>/dev/null ||:
 	docker run ${DOCKER_OPTS} --name "${DOCKER_IMAGE}" --network local-dev_house --rm "${DOCKER_IMAGE}"
 
-.PHONY:
+.PHONY: logs
 logs:
 	docker logs "${DOCKER_IMAGE}"
 
-env: ${ROOT}/schema.sql ${PROXY_DIR}/db-volume
-	cp "$<" "${ROOT}/local-dev/postgres/"
-	${DOCKER_COMPOSE} up --detach --build
+.PHONY: env
+env: ${PROXY_DIR}/env
 
-${PROXY_DIR}/db-volume: ${ROOT}/schema.sql
+${PROXY_DIR}/env: ${ROOT}/schema.sql ${ROOT}/local-dev/docker-compose.yaml
+	@echo "***** (Re)Making environment *****"
 	${DOCKER_COMPOSE} down
 	docker volume rm local-dev_db-data 2>/dev/null ||:
+	cp "${ROOT}/schema.sql" "${ROOT}/local-dev/postgres/"
+	${DOCKER_COMPOSE} up --detach --build
+	sleep 5
 	mkdir -p "${PROXY_DIR}" && touch "$@"
 
 .PHONY: clean
@@ -39,3 +42,4 @@ clean:
 .PHONY: deepclean
 deepclean: clean
 	${DOCKER_COMPOSE} down --volumes --rmi local
+	rm -rf ${PROXY_DIR}
