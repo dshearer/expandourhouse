@@ -1,71 +1,125 @@
+const fs = require('fs'),
+  AWS = require('aws-sdk'),
+  mbxClient = require('@mapbox/mapbox-sdk'),
+  mbxStyles = require('@mapbox/mapbox-sdk/services/styles'),
+  mbxUploads = require('@mapbox/mapbox-sdk/services/uploads'),
+  _ = require('lodash');
+
 // parse args
+const usage = 'usage: node upload.js (style STYLE_FILE MAPBOX_USER | ' +
+  'states STYLE_FILE STATES_TILESET | ' +
+  'districts STYLE_FILE DISTRICTS_TILESET)';
 const args = process.argv.slice(2);
-if (args.length != 2) {
-  process.stderr.write('usage: node upload.js DATA_FILE MAPBOX_USERNAME\n');
+if (args.length < 1) {
+  process.stderr.write(usage + '\n');
   process.exit(1);
 }
-const districtsFile = args[0];
-const user = args[1];
+const cmd = args[0];
 
-var accessToken = process.env.MAPBOX_WRITE_SCOPE_ACCESS_TOKEN;
+// get MapBox access token
+const ACCESS_TOKEN_ENV_VAR = 'MAPBOX_WRITE_SCOPE_ACCESS_TOKEN';
+const accessToken = process.env[ACCESS_TOKEN_ENV_VAR];
 if (accessToken === undefined) {
-  process.stderr.write("Missing env var: MAPBOX_WRITE_SCOPE_ACCESS_TOKEN\n");
+  process.stderr.write(`Missing env var: ${ACCESS_TOKEN_ENV_VAR}\n`);
   process.exit(1);
 }
 
-var fs = require('fs'),
-    MapboxClient = require('mapbox'),
-    AWS = require('aws-sdk');
+const baseClient = mbxClient({ accessToken: accessToken }),
+  stylesService = mbxStyles(baseClient),
+  uploadsService = mbxUploads(baseClient);
 
-// get data file base name
-var baseName = districtsFile;
-if (baseName.indexOf("/") != -1) {
-  const parts = baseName.split("/");
-  baseName = parts[parts.length - 1];
-}
-if (baseName.indexOf(".") != -1) {
-  baseName = baseName.split(".")[0];
-}
+function doUploadStyle() {
+  // parse args
+  if (args.length != 3) {
+    process.stderr.write(usage + '\n');
+    process.exit(1);
+  }
+  const styleFile = args[1];
+  const user = args[2];
 
-var tileset_id = user + "." + baseName; // max 32 characters (including "-labels" added below), only one period
-var tileset_name = "US_Congressional_Districts_" + baseName; // max 64 characters (including "_Labels" added below) no spaces
+  // get some stuff from the style
+  const style = JSON.parse(fs.readFileSync(styleFile, 'utf-8'));
+  const styleName = style.name;
 
-var client = new MapboxClient(accessToken);
+  // look for existing style
+  return stylesService.listStyles({ownerId: user}).send()
+    .then(function(resp) {
+      console.log("Uploading style");
 
-// here's how to upload a file to Mapbox
-
-function upload_tileset(file, id, name) {
-  client.createUploadCredentials(function(err, credentials) {
-    console.log('staging', file, '>', id, '...');
-
-    // Use aws-sdk to stage the file on Amazon S3
-    var s3 = new AWS.S3({
-         accessKeyId: credentials.accessKeyId,
-         secretAccessKey: credentials.secretAccessKey,
-         sessionToken: credentials.sessionToken,
-         region: 'us-east-1'
+      // get ID of style with name styleName
+      const styles = resp.body.filter(style => style.name === styleName);
+      if (styles.length > 0) {
+        // update existing style
+        const styleId = styles[0].id;
+        return stylesService.updateStyle({styleId: styleId, style: style, ownerId: user}).send()
+          .then(() => console.log("Updated existing style"));
+      }
+      else {
+        // create new style
+        return stylesService.createStyle({style: style, ownerId: user}).send()
+          .then(() => console.log("Created new style"));
+      }
     });
-    s3.putObject({
-      Bucket: credentials.bucket,
-      Key: credentials.key,
-      Body: fs.createReadStream(file)
-    }, function(err, resp) {
-      if (err) throw err;
+}
 
-      // Create a Mapbox upload
-      client.createUpload({
-         tileset: id,
-         url: credentials.url,
-         name: name
-      }, function(err, upload) {
-        if (err) throw err;
-        console.log(file, id, name, 'uploaded, check mapbox.com/studio for updates.');
+function doUploadTilesets(statesOrDistricts) {
+  // parse args
+  if (args.length != 3) {
+    process.stderr.write(usage + '\n');
+    process.exit(1);
+  }
+  const styleFile = args[1];
+  const tilesetFile = args[2];
+
+  // get some stuff from the style
+  const style = JSON.parse(fs.readFileSync(styleFile, 'utf-8'));
+  const tilesetId = style.metadata[`dshearer:${statesOrDistricts}-tileset-id`];
+  const tilesetName = style.metadata[`dshearer:${statesOrDistricts}-tileset-name`];
+
+  // upload
+  return uploadsService.createUploadCredentials().send()
+    .then(resp => resp.body)
+    .then(creds => {
+      // Use aws-sdk to stage the file on Amazon S3
+      console.log("Uploading tileset to AWS");
+      const s3 = new AWS.S3({
+           accessKeyId: creds.accessKeyId,
+           secretAccessKey: creds.secretAccessKey,
+           sessionToken: creds.sessionToken,
+           region: 'us-east-1'
       });
-
+      const req = s3.putObject({
+        Bucket: creds.bucket,
+        Key: creds.key,
+        Body: fs.createReadStream(tilesetFile),
+      });
+      req.on('httpUploadProgress', progress => {
+        var pc = _.floor(100 * progress.loaded / progress.total);
+        console.log("Uploaded " + pc + "%");
+      });
+      return req.promise().then(() => creds);
+    })
+    .then(creds => {
+      // create mapbox upload
+      console.log("Sending uploaded tileset to MapBox");
+      return uploadsService.createUpload({
+        mapId: tilesetId,
+        url: creds.url,
+        tilesetName: tilesetName,
+      }).send();
     });
-  });
 }
 
-// do the upload
-
-upload_tileset(districtsFile, tileset_id, tileset_name)
+var f;
+if (cmd === 'style') {
+  f = doUploadStyle;
+} else if (cmd === 'states' || cmd === 'districts') {
+  f = () => doUploadTilesets(cmd);
+} else {
+  process.stderr.write(usage + '\n');
+  process.exit(1);
+}
+f().catch(e => {
+  console.log(e);
+  process.exit(1);
+});

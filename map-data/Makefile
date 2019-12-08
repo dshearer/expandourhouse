@@ -1,39 +1,91 @@
-CENSUS_DATA_FILE = tl_2019_us_cd116
-CENSUS_DATA_FILE_URL = ftp://ftp2.census.gov/geo/tiger/TIGER2019/CD/${CENSUS_DATA_FILE}.zip
+STATE_DATA_URL = https://publications.newberry.org/ahcbp/downloads/gis/US_AtlasHCB_StateTerr_Gen001.zip
+DISTRICTS_DATA_URL = http://cdmaps.polisci.ucla.edu/shp
 
-.PHONY: main
-main: data/${CENSUS_DATA_FILE}.mbtiles
+CONGRESSES = $(shell seq -f '%03g' 5)
 
-data/${CENSUS_DATA_FILE}.zip:
-	# Download district boundaries from Census
-	mkdir -p data
-	wget -P data "${CENSUS_DATA_FILE_URL}"
+STATE_TILES = $(patsubst %,data/%.states-mbtiles,${CONGRESSES})
+DISTRICT_TILES = $(patsubst %,data/%.districts-mbtiles,${CONGRESSES})
+STYLE_UPLOADED = $(patsubst %,data/%.style-uploaded,${CONGRESSES})
+STATES_UPLOADED = $(patsubst %,data/%.states-mbtiles-uploaded,${CONGRESSES})
+DISTRICTS_UPLOADED = $(patsubst %,data/%.districts-mbtiles-uploaded,${CONGRESSES})
 
-data/${CENSUS_DATA_FILE}.shp: data/${CENSUS_DATA_FILE}.zip
-	# Get the shape file from the zipfile
-	unzip "$<" -d data
-	chmod -x data/*
-	touch data/*
+MAPBOX_USER = dshearer
 
-%.geojson: %.shp
-	# Convert shape file to GeoJSON
-	ogr2ogr -f GeoJSON -t_srs crs:84 "$@" "$<"
+#data/US_AtlasHCB_StateTerr_Gen001/US_HistStateTerr_Gen001_Shapefile/US_HistStateTerr_Gen001.shp
 
-%.processed.geojson: %.geojson process.js
-	npm i
-	node process.js "$<" "$@"
-
-%.mbtiles: %.processed.geojson
-	tippecanoe -o "$@" -f -z 12 -Z 0 -B 0 -pS -pp -l districts -n "US Congressional Districts" "$<"
+.PHONY: all
+all: ${STATE_TILES} ${DISTRICT_TILES}
 
 .PHONY: upload
-upload: data/${CENSUS_DATA_FILE}.mbtiles
-	node upload.js "$<" dshearer
+upload: ${STYLE_UPLOADED} ${STATES_UPLOADED} ${DISTRICTS_UPLOADED}
+
+#################################################
+# STATES
+#################################################
+
+data/US_AtlasHCB_StateTerr_Gen001.zip:
+	curl --fail-early --fail "${STATE_DATA_URL}" > "$@"
+
+data/states.geojson: data/US_AtlasHCB_StateTerr_Gen001.zip
+	unzip -d data -o "$<"
+	ogr2ogr -f GeoJSON -t_srs crs:84 "$@" "$$(find data -name US_HistStateTerr_Gen001.shp)"
+
+data/%.states-geojson: data/states.geojson
+	node extract-states-for-year.js "$<" "$$(($(shell node congress-start-year.js $*) - 1))" > "$@"
+
+data/%.labelled-states-geojson: data/%.states-geojson
+	node add-labels.js "$<" > "$@"
+
+data/%.states-mbtiles: data/%.labelled-states-geojson
+	tippecanoe -o "$@" -f -z 12 -Z 0 -B 0 -pS -pp -l states -n "states $*" "$<"
+
+#################################################
+# DISTRICTS
+#################################################
+
+data/districts%.zip:
+	curl --fail-early --fail "${DISTRICTS_DATA_URL}/districts${*}.zip" > "$@"
+
+data/%.districts-geojson: data/districts%.zip
+	# Get the shape file from the zipfile
+	unzip -d "$(dir $@)" -jo "$<"
+
+	# Convert shape file to GeoJSON
+	ogr2ogr -f GeoJSON -t_srs crs:84 "$@" "data/districts$*.shp"
+
+data/%.proc-districts-geojson: data/%.districts-geojson
+	node process-from-ucla.js "$<" "$@"
+
+data/%.labelled-districts-geojson: data/%.proc-districts-geojson
+	node add-labels.js "$<" > "$@"
+
+data/%.districts-mbtiles: data/%.labelled-districts-geojson
+	tippecanoe -o "$@" -f -z 12 -Z 0 -B 0 -pS -pp -l districts -n "district $*" "$<"
+
+#################################################
+# STYLE
+#################################################
+
+data/%.style: style-template.json
+	node make-style.js "$*" "${MAPBOX_USER}" > "$@"
+
+#################################################
+# UPLOADING
+#################################################
+
+data/%.style-uploaded: data/%.style
+	node upload.js style "$<" "${MAPBOX_USER}"
+	touch "$@"
+
+data/%.states-mbtiles-uploaded: data/%.style data/%.states-mbtiles
+	node upload.js states $^
+	touch "$@"
+
+data/%.districts-mbtiles-uploaded: data/%.style data/%.districts-mbtiles
+	node upload.js districts $^
+	touch "$@"
 
 .PHONY: clean
 clean:
-	rm -f data/*.shp data/*.geojson data/*.cpg data/*.dbf data/*.prj data/*.xml data/*.shx data/*.mbtiles
-
-.PHONY: deepclean
-deepclean: clean
-	rm -rf node_modules
+	rm -rf data/US_AtlasHCB_StateTerr_Gen001 data/*.shp data/*.shx data/*mbtiles \
+		data/states.geojson data/*.dbf data/*.prj data/*uploaded
