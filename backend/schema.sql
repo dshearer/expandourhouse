@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS congress(
 CREATE TABLE IF NOT EXISTS house_district(
     id SERIAL NOT NULL PRIMARY KEY,
     state VARCHAR(2) NOT NULL, /* Two-digit state FIPS code */
-    district VARCHAR(2) NOT NULL, /* E.g., '02' for 2nd */
+    district INTEGER NOT NULL,
     congress_nbr INTEGER NOT NULL REFERENCES congress(nbr) ON DELETE RESTRICT,
 
     CONSTRAINT state_district_congress_unique UNIQUE (state, district, congress_nbr)

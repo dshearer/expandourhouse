@@ -124,7 +124,7 @@ func parseCongressNbr(geoname string) *int {
 
 type geoid struct {
 	state    int
-	district string
+	district int
 }
 
 func parseGeoid(s string) *geoid {
@@ -145,7 +145,10 @@ func parseGeoid(s string) *geoid {
 	if err != nil {
 		return nil
 	}
-	g.district = s[len(prefix)+2:]
+	g.district, err = strconv.Atoi(s[len(prefix)+2:])
+	if err != nil {
+		return nil
+	}
 	return &g
 }
 
@@ -284,9 +287,9 @@ do:
 }
 
 func getDistrict(ctx context.Context, db *sql.DB,
-	state, district string, congressNbr int) (int, error) {
+	state string, district int, congressNbr int) (int, error) {
 
-	var districtId int
+	var rowId int
 	var rows *sql.Rows
 	var err error
 
@@ -299,7 +302,7 @@ func getDistrict(ctx context.Context, db *sql.DB,
 	}
 	if rows.Next() {
 		/* Already exists */
-		err = rows.Scan(&districtId)
+		err = rows.Scan(&rowId)
 		goto done
 	}
 
@@ -311,16 +314,16 @@ func getDistrict(ctx context.Context, db *sql.DB,
 		goto done
 	}
 	rows.Next()
-	err = rows.Scan(&districtId)
+	err = rows.Scan(&rowId)
 
 done:
 	if rows != nil {
 		rows.Close()
 	}
-	return districtId, err
+	return rowId, err
 }
 
-func addDistrictPop(ctx context.Context, db *sql.DB, districtId int,
+func addDistrictPop(ctx context.Context, db *sql.DB, districtRowId int,
 	typ string, value, moe, sourceId int) error {
 
 	var rows *sql.Rows
@@ -331,7 +334,7 @@ func addDistrictPop(ctx context.Context, db *sql.DB, districtId int,
 	// check if already exits
 	sql = "SELECT COUNT(*) FROM house_district_pop WHERE" +
 		" house_district_id = $1 AND type = $2"
-	rows, err = db.QueryContext(ctx, sql, districtId, typ)
+	rows, err = db.QueryContext(ctx, sql, districtRowId, typ)
 	if err != nil {
 		goto done
 	}
@@ -346,7 +349,7 @@ func addDistrictPop(ctx context.Context, db *sql.DB, districtId int,
 	// add row
 	sql = "INSERT INTO house_district_pop(house_district_id, type, value, " +
 		"margin_of_error, source_id) VALUES ($1, $2, $3, $4, $5)"
-	_, err = db.ExecContext(ctx, sql, districtId, typ, value, moe, sourceId)
+	_, err = db.ExecContext(ctx, sql, districtRowId, typ, value, moe, sourceId)
 
 done:
 	if rows != nil {
@@ -388,32 +391,35 @@ func updateDatabase(ctx context.Context, db *sql.DB,
 		}
 
 		// get district row ID
-		districtId, err := getDistrict(ctx, db, state, rec.g.district, *rec.congressNbr)
+		districtRowId, err := getDistrict(ctx, db, state, rec.g.district, *rec.congressNbr)
 		if err != nil {
 			return err
 		}
 
 		if rec.pop != nil && rec.popMoe != nil {
-			err = addDistrictPop(ctx, db, districtId, "all", *rec.pop, *rec.popMoe, sourceId)
+			err = addDistrictPop(ctx, db, districtRowId, "all", *rec.pop,
+				*rec.popMoe, sourceId)
 			if err != nil {
 				return err
 			}
 		}
 		if rec.adults != nil && rec.adultsMoe != nil {
-			err = addDistrictPop(ctx, db, districtId, "adults", *rec.adults, *rec.adultsMoe, sourceId)
+			err = addDistrictPop(ctx, db, districtRowId, "adults",
+				*rec.adults, *rec.adultsMoe, sourceId)
 			if err != nil {
 				return err
 			}
 		}
 		if rec.citizens != nil && rec.citizensMoe != nil {
-			err = addDistrictPop(ctx, db, districtId, "citizens", *rec.citizens,
+			err = addDistrictPop(ctx, db, districtRowId, "citizens", *rec.citizens,
 				*rec.citizensMoe, sourceId)
 			if err != nil {
 				return err
 			}
 		}
 		if rec.cvap != nil && rec.cvapMoe != nil {
-			err = addDistrictPop(ctx, db, districtId, "cvap", *rec.cvap, *rec.cvapMoe, sourceId)
+			err = addDistrictPop(ctx, db, districtRowId, "cvap", *rec.cvap,
+				*rec.cvapMoe, sourceId)
 			if err != nil {
 				return err
 			}
