@@ -42,6 +42,10 @@ func run(dataDirPath string) error {
 	if err = UpdateCongresses(ctx, db, dataDirPath); err != nil {
 		return err
 	}
+	log.Printf("Processing historical legislator data")
+	if err = UpdateHistoricalLegislators(ctx, db, dataDirPath); err != nil {
+		return err
+	}
 	_, err = db.ExecContext(ctx, "COMMIT")
 	if err != nil {
 		return err

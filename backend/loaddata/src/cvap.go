@@ -5,7 +5,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/csv"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -13,7 +12,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"unicode"
@@ -286,43 +284,6 @@ do:
 	return &data, nil
 }
 
-func getDistrict(ctx context.Context, db *sql.DB,
-	state string, district int, congressNbr int) (int, error) {
-
-	var rowId int
-	var rows *sql.Rows
-	var err error
-
-	// check if there's already a row for this district
-	rows, err = db.QueryContext(ctx, "SELECT id FROM house_district WHERE "+
-		"state = $1 AND district = $2 AND congress_nbr = $3",
-		state, district, congressNbr)
-	if err != nil {
-		goto done
-	}
-	if rows.Next() {
-		/* Already exists */
-		err = rows.Scan(&rowId)
-		goto done
-	}
-
-	// make district row
-	rows.Close()
-	rows, err = db.QueryContext(ctx, "INSERT INTO house_district(state, district, congress_nbr)"+
-		" VALUES ($1, $2, $3) RETURNING id", state, district, congressNbr)
-	if err != nil {
-		goto done
-	}
-	rows.Next()
-	err = rows.Scan(&rowId)
-
-done:
-	if rows != nil {
-		rows.Close()
-	}
-	return rowId, err
-}
-
 func addDistrictPop(ctx context.Context, db *sql.DB, districtRowId int,
 	typ string, value, moe, sourceId int) error {
 
@@ -458,40 +419,10 @@ func processDataFile(ctx context.Context, db *sql.DB, path string,
 	return nil
 }
 
-type stateDataEntry struct {
-	Name string
-	FIPS int
-	USPS string
-}
-
-// Returns a map from state FIPS code to state abbrev
-func loadStateData(statesFilePath string) (map[int]string, error) {
-	f, err := os.Open(statesFilePath)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	decoder := json.NewDecoder(f)
-	states := make(map[int]string)
-	if !decoder.More() {
-		return nil, errors.New("States file seems to be empty")
-	}
-	var entries []stateDataEntry
-	err = decoder.Decode(&entries)
-	if err != nil {
-		return nil, err
-	}
-	for _, entry := range entries {
-		states[entry.FIPS] = entry.USPS
-	}
-
-	return states, nil
-}
-
 // ProcessCvap processes the CVAP data
 func ProcessCvap(ctx context.Context, db *sql.DB, dataDirPath string) error {
 	// load state data
-	stateData, err := loadStateData(filepath.Join(dataDirPath, "states.json"))
+	stateData, err := LoadStateData(dataDirPath)
 	if err != nil {
 		return err
 	}

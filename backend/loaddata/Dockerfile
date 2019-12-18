@@ -1,4 +1,4 @@
-FROM golang:1-alpine
+FROM golang:1.13-alpine
 
 WORKDIR /app/
 
@@ -7,8 +7,8 @@ ADD src/go.mod ./src/
 RUN cd src && go mod download
 
 # compile app
-ADD src/* ./src/
-RUN cd src && go build
+ADD src ./src
+RUN go version && cd src && go build
 
 FROM alpine
 
