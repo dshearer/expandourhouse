@@ -5,10 +5,13 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
-	_ "github.com/lib/pq"
 	"log"
 	"os"
 	"os/signal"
+
+	"expandourhouse.com/loaddata/tuftsTurnout"
+	"expandourhouse.com/loaddata/utils"
+	_ "github.com/lib/pq"
 )
 
 func handleSignals(f func()) {
@@ -37,29 +40,36 @@ func run(dataDirPath string) error {
 	defer stop()
 	handleSignals(stop)
 
+	// load state data
+	utils.LoadStateData(dataDirPath)
+
 	// load data
-	log.Printf("Processing congress data")
-	if err = UpdateCongresses(ctx, db, dataDirPath); err != nil {
-		return err
-	}
-	log.Printf("Processing historical legislator data")
-	if err = UpdateHistoricalLegislators(ctx, db, dataDirPath); err != nil {
-		return err
-	}
-	_, err = db.ExecContext(ctx, "COMMIT")
-	if err != nil {
-		return err
-	}
-	log.Printf("Processing CVAP data")
-	if err = ProcessCvap(ctx, db, dataDirPath); err != nil {
-		return err
-	}
-	_, err = db.ExecContext(ctx, "COMMIT")
-	if err != nil {
-		return err
-	}
-	log.Printf("Processing turnout data")
-	if err = UpdateTurnout(ctx, db, dataDirPath); err != nil {
+	// log.Printf("Processing congress data")
+	// if err = UpdateCongresses(ctx, db, dataDirPath); err != nil {
+	// 	return err
+	// }
+	// log.Printf("Processing historical legislator data")
+	// if err = UpdateHistoricalLegislators(ctx, db, dataDirPath); err != nil {
+	// 	return err
+	// }
+	// _, err = db.ExecContext(ctx, "COMMIT")
+	// if err != nil {
+	// 	return err
+	// }
+	// log.Printf("Processing CVAP data")
+	// if err = ProcessCvap(ctx, db, dataDirPath); err != nil {
+	// 	return err
+	// }
+	// _, err = db.ExecContext(ctx, "COMMIT")
+	// if err != nil {
+	// 	return err
+	// }
+	// log.Printf("Processing MIT turnout data")
+	// if err = mitTurnout.UpdateTurnout(ctx, db, dataDirPath); err != nil {
+	// 	return err
+	// }
+	log.Printf("Processing Tufts turnout data")
+	if err = tuftsTurnout.ProcessTuftsTurnout(ctx, db, dataDirPath); err != nil {
 		return err
 	}
 	_, err = db.ExecContext(ctx, "COMMIT")

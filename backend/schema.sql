@@ -29,11 +29,8 @@ CREATE TABLE IF NOT EXISTS house_district_pop(
 
 CREATE TABLE IF NOT EXISTS house_district_turnout(
     house_district_id INTEGER NOT NULL REFERENCES house_district(id) ON DELETE CASCADE,
-    year INTEGER NOT NULL,
     num_votes INTEGER NOT NULL,
-    source_id INTEGER NOT NULL REFERENCES source(id) ON DELETE RESTRICT,
-
-    CONSTRAINT house_district_turnout_unique UNIQUE (house_district_id, year)
+    source_id INTEGER NOT NULL REFERENCES source(id) ON DELETE RESTRICT
 );
 
 CREATE TABLE IF NOT EXISTS representative_term(

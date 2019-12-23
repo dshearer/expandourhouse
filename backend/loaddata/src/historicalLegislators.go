@@ -10,42 +10,20 @@ import (
 	"time"
 
 	"expandourhouse.com/loaddata/bulkInserter"
+	"expandourhouse.com/loaddata/utils"
 )
 
 func parseDate(dateStr string) (time.Time, error) {
 	return time.Parse("2006-01-02", dateStr)
 }
 
-func findCongress(ctx context.Context, db *sql.DB, date time.Time) (*int, error) {
-	var nbr *int
-	var rows *sql.Rows
-	var err error
-	var tmp int
-
+func findCongress(ctx context.Context, db *sql.DB, date time.Time) (int, error) {
 	year := date.Year()
 	if year%2 == 0 {
 		year--
 	}
 
-	sql := "SELECT nbr FROM congress WHERE start_year = $1"
-	rows, err = db.QueryContext(ctx, sql, year)
-	if err != nil {
-		goto done
-	}
-	if !rows.Next() {
-		goto done
-	}
-	err = rows.Scan(&tmp)
-	if err != nil {
-		goto done
-	}
-	nbr = &tmp
-
-done:
-	if rows != nil {
-		rows.Close()
-	}
-	return nbr, err
+	return utils.GetCongressNbr(ctx, db, year)
 }
 
 func handleHistLegEntry(ctx context.Context, db *sql.DB,
@@ -79,10 +57,6 @@ func handleHistLegEntry(ctx context.Context, db *sql.DB,
 		if err != nil {
 			return err
 		}
-		if congressNbr == nil {
-			log.Printf("Failed to find congress for year %v", start.Year())
-			continue
-		}
 
 		// get state
 		state := term["state"].(string)
@@ -91,7 +65,7 @@ func handleHistLegEntry(ctx context.Context, db *sql.DB,
 		districtNbr := int(term["district"].(float64))
 		var districtId *int
 		if districtNbr != -1 {
-			tmp, err := getDistrict(ctx, db, state, districtNbr, *congressNbr)
+			tmp, err := utils.GetDistrict(ctx, db, state, districtNbr, congressNbr)
 			if err != nil {
 				return err
 			}

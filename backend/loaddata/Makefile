@@ -1,6 +1,20 @@
 DOCKER_IMAGE = loaddata
 DOCKER_OPTS = -it
 
+SOURCE = \
+	Dockerfile \
+	$(wildcard src/bulkInserter/*.go) \
+	$(wildcard src/mitTurnout/*.go) \
+	$(wildcard src/tuftsTurnout/*.go) \
+	$(wildcard src/utils/*.go) \
+	$(wildcard src/*.go) \
+	data/congress-start-years.txt \
+	data/CVAP_2012-2016_ACS_csv_files.zip \
+	data/CVAP_2013-2017_ACS_csv_files.zip \
+	data/legislators-historical.json \
+	data/states.json \
+	data/tufts-all-votes-congress-3.tsv
+
 include ../local-dev/local-dev.mk
 
 .PHONY: get-data

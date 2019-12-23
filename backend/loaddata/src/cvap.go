@@ -15,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+
+	"expandourhouse.com/loaddata/utils"
 )
 
 func getDistrictDataFromZip(zipFile *os.File) (*os.File, error) {
@@ -320,10 +322,10 @@ done:
 }
 
 func updateDatabase(ctx context.Context, db *sql.DB,
-	dataFile *os.File, stateData map[int]string) error {
+	dataFile *os.File) error {
 
 	sourceText := "US Census Citizen Voting Age Population by Race and Ethnicity 2013-2017"
-	sourceId, err := getSource(ctx, db, sourceText)
+	sourceId, err := utils.GetSource(ctx, db, sourceText)
 	if err != nil {
 		return err
 	}
@@ -344,15 +346,15 @@ func updateDatabase(ctx context.Context, db *sql.DB,
 		}
 
 		// look up state
-		state, ok := stateData[rec.g.state]
-		if !ok {
-			log.Printf("Invalid state code: %v", rec.g.state)
+		state, err := utils.GetUspsStateForFips(rec.g.state)
+		if err != nil {
+			log.Print(err)
 			nbrError++
 			continue
 		}
 
 		// get district row ID
-		districtRowId, err := getDistrict(ctx, db, state, rec.g.district, *rec.congressNbr)
+		districtRowId, err := utils.GetDistrict(ctx, db, state, rec.g.district, *rec.congressNbr)
 		if err != nil {
 			return err
 		}
@@ -393,8 +395,7 @@ func updateDatabase(ctx context.Context, db *sql.DB,
 	return nil
 }
 
-func processDataFile(ctx context.Context, db *sql.DB, path string,
-	stateData map[int]string) error {
+func processDataFile(ctx context.Context, db *sql.DB, path string) error {
 
 	// open zipfile
 	dataZip, err := os.Open(path)
@@ -411,7 +412,7 @@ func processDataFile(ctx context.Context, db *sql.DB, path string,
 	defer districtData.Close()
 
 	// update DB
-	err = updateDatabase(ctx, db, districtData, stateData)
+	err = updateDatabase(ctx, db, districtData)
 	if err != nil {
 		return err
 	}
@@ -421,16 +422,10 @@ func processDataFile(ctx context.Context, db *sql.DB, path string,
 
 // ProcessCvap processes the CVAP data
 func ProcessCvap(ctx context.Context, db *sql.DB, dataDirPath string) error {
-	// load state data
-	stateData, err := LoadStateData(dataDirPath)
-	if err != nil {
-		return err
-	}
-
 	// process CVAP files
 	dataPath := path.Join(dataDirPath, "CVAP_2013-2017_ACS_csv_files.zip")
 	log.Printf("Processing %v", dataPath)
-	if err = processDataFile(ctx, db, dataPath, stateData); err != nil {
+	if err := processDataFile(ctx, db, dataPath); err != nil {
 		return err
 	}
 
