@@ -7,6 +7,10 @@ if (args.length != 2) {
   process.exit(1);
 }
 const inputFile = args[0];
+var forYear = parseInt(args[1], 10);
+if (forYear > 2000) {
+  forYear = 2000;
+}
 const forDate = new Date(`${args[1]}/01/01`);
 process.stderr.write("Getting state boundaries for " + forDate + "\n");
 

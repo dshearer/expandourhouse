@@ -21,7 +21,7 @@ const districtsTilesetName = `US_Districts_${congressNbr}`;
 
 // make style
 const style = JSON.parse(fs.readFileSync(STYLE_TEMPLATE_FILE, 'utf-8'));
-style.name = `Geo for Congress ${congressNbr}`;
+style.name = `congress-${congressNbr}`;
 style.glyphs = `mapbox://fonts/${user}/{fontstack}/{range}.pbf`;
 style.sources.states = {url: `mapbox://${statesTilesetId}`, type: 'vector'};
 style.sources.districts = {url: `mapbox://${districtsTilesetId}`, type: 'vector'};

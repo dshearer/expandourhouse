@@ -44,6 +44,9 @@ data.features.forEach((f, idx) => {
 
 // make labels for remaining boundaries
 boundariesById.forEach((f, id) => {
+  if (f.geometry === null) {
+    return;
+  }
   const labelPoint = turf.centerOfMass(f);
   Object.assign(labelPoint.properties, f.properties);
   labelPoint.properties.group = 'label';

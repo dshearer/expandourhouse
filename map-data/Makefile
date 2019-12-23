@@ -1,13 +1,14 @@
 STATE_DATA_URL = https://publications.newberry.org/ahcbp/downloads/gis/US_AtlasHCB_StateTerr_Gen001.zip
 DISTRICTS_DATA_URL = http://cdmaps.polisci.ucla.edu/shp
 
-CONGRESSES = $(shell seq -f '%03g' 5)
+CONGRESSES = $(shell seq -f '%03g' 100 100)
 
 STATE_TILES = $(patsubst %,data/%.states-mbtiles,${CONGRESSES})
 DISTRICT_TILES = $(patsubst %,data/%.districts-mbtiles,${CONGRESSES})
 STYLE_UPLOADED = $(patsubst %,data/%.style-uploaded,${CONGRESSES})
 STATES_UPLOADED = $(patsubst %,data/%.states-mbtiles-uploaded,${CONGRESSES})
 DISTRICTS_UPLOADED = $(patsubst %,data/%.districts-mbtiles-uploaded,${CONGRESSES})
+ZIPS = data/US_AtlasHCB_StateTerr_Gen001.zip $(patsubst %,data/districts%.zip,${CONGRESSES})
 
 MAPBOX_USER = dshearer
 
@@ -16,8 +17,14 @@ MAPBOX_USER = dshearer
 .PHONY: all
 all: ${STATE_TILES} ${DISTRICT_TILES}
 
+.PHONY: upload-styles
+upload-styles: ${STYLE_UPLOADED}
+
 .PHONY: upload
-upload: ${STYLE_UPLOADED} ${STATES_UPLOADED} ${DISTRICTS_UPLOADED}
+upload: upload-styles ${STATES_UPLOADED} ${DISTRICTS_UPLOADED}
+
+.PHONY: zips
+zips: ${ZIPS}
 
 #################################################
 # STATES
@@ -35,6 +42,7 @@ data/%.states-geojson: data/states.geojson
 
 data/%.labelled-states-geojson: data/%.states-geojson
 	node add-labels.js "$<" > "$@"
+	cp "$@" "$@.bkp"
 
 data/%.states-mbtiles: data/%.labelled-states-geojson
 	tippecanoe -o "$@" -f -z 12 -Z 0 -B 0 -pS -pp -l states -n "states $*" "$<"
@@ -58,6 +66,7 @@ data/%.proc-districts-geojson: data/%.districts-geojson
 
 data/%.labelled-districts-geojson: data/%.proc-districts-geojson
 	node add-labels.js "$<" > "$@"
+	cp "$@" "$@.bkp"
 
 data/%.districts-mbtiles: data/%.labelled-districts-geojson
 	tippecanoe -o "$@" -f -z 12 -Z 0 -B 0 -pS -pp -l districts -n "district $*" "$<"
@@ -84,6 +93,10 @@ data/%.states-mbtiles-uploaded: data/%.style data/%.states-mbtiles
 data/%.districts-mbtiles-uploaded: data/%.style data/%.districts-mbtiles
 	node upload.js districts $^
 	touch "$@"
+
+.PHONY: clean-upload-styles
+clean-upload-styles:
+	rm -f data/*.style-uploaded
 
 .PHONY: clean
 clean:
