@@ -95,9 +95,12 @@ function doUploadTilesets(statesOrDistricts) {
       });
       req.on('httpUploadProgress', progress => {
         var pc = _.floor(100 * progress.loaded / progress.total);
-        console.log("Uploaded " + pc + "%");
+        process.stdout.write("\rUploaded " + pc + "%");
       });
-      return req.promise().then(() => creds);
+      return req.promise().then(() => {
+        process.stdout.write("\n");
+        return creds;
+      });
     })
     .then(creds => {
       // create mapbox upload
