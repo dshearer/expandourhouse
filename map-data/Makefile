@@ -1,21 +1,30 @@
 STATE_DATA_URL = https://publications.newberry.org/ahcbp/downloads/gis/US_AtlasHCB_StateTerr_Gen001.zip
 DISTRICTS_DATA_URL = http://cdmaps.polisci.ucla.edu/shp
 
-CONGRESSES = $(shell seq -f '%03g' 2 10)
-
-STATE_TILES = $(patsubst %,data/%-states.mbtiles,${CONGRESSES})
-DISTRICT_TILES = $(patsubst %,data/%-districts.mbtiles,${CONGRESSES})
-STYLES = $(patsubst %,data/%-style.json,${CONGRESSES})
-
-STATES_UPLOADED = $(patsubst %,%.uploaded,${STATE_TILES})
-DISTRICTS_UPLOADED = $(patsubst %,%.uploaded,${DISTRICT_TILES})
-STYLES_UPLOADED = $(patsubst %,%.uploaded,${STYLES})
-
-ZIPS = data/US_AtlasHCB_StateTerr_Gen001.zip $(patsubst %,data/districts%.zip,${CONGRESSES})
+CONGRESSES = $(shell seq -f '%03g' 2 2)
 
 MAPBOX_USER = dshearer
 
-#data/US_AtlasHCB_StateTerr_Gen001/US_HistStateTerr_Gen001_Shapefile/US_HistStateTerr_Gen001.shp
+# dirs
+TMP = ${PWD}/.tmp
+OUTPUT = ${PWD}/output
+
+# targets
+STATE_TILES = $(patsubst %,${OUTPUT}/%-states.mbtiles,${CONGRESSES})
+STATES_UPLOADED = $(patsubst %,${TMP}/%-states.mbtiles.uploaded,${CONGRESSES})
+DISTRICT_TILES = $(patsubst %,${OUTPUT}/%-districts.mbtiles,${CONGRESSES})
+DISTRICTS_UPLOADED = $(patsubst %,${TMP}/%-districts.mbtiles.uploaded,${CONGRESSES})
+STYLES = $(patsubst %,${OUTPUT}/%-style.json,${CONGRESSES})
+STYLES_UPLOADED = $(patsubst %,${TMP}/%-style.json.uploaded,${CONGRESSES})
+
+# programs
+ADD_LABELS = ${TMP}/add-labels
+CHOP = ${TMP}/chop
+CONGRESS_START_YEAR = ${TMP}/congress-start-year
+EXTRACT_STATES_FOR_YEAR = ${TMP}/extract-states-for-year
+MAKE_STYLE = ${TMP}/make-style
+PROCESS_DISTRICTS = ${TMP}/process-districts
+UPLOAD = ${TMP}/upload
 
 .PHONY: all
 all: ${STATE_TILES} ${DISTRICT_TILES} ${STYLES}
@@ -23,36 +32,33 @@ all: ${STATE_TILES} ${DISTRICT_TILES} ${STYLES}
 .PHONY: upload
 upload: ${STYLES_UPLOADED} ${STATES_UPLOADED} ${DISTRICTS_UPLOADED}
 
-.PHONY: zips
-zips: ${ZIPS}
+include src/include.mk
 
 #################################################
 # STATES
 #################################################
 
-data/US_AtlasHCB_StateTerr_Gen001.zip:
+${TMP}/US_AtlasHCB_StateTerr_Gen001.zip:
+	mkdir -p "${TMP}"
 	curl --fail-early --fail "${STATE_DATA_URL}" > "$@"
 
-data/states.geojson: data/US_AtlasHCB_StateTerr_Gen001.zip
-	unzip -d data -o "$<"
-	ogr2ogr -f GeoJSON -t_srs crs:84 "$@" "$$(find data -name US_HistStateTerr_Gen001.shp)"
+${TMP}/states.geojson: ${TMP}/US_AtlasHCB_StateTerr_Gen001.zip
+	unzip -d "${TMP}" -o "$<"
+	ogr2ogr -f GeoJSON -t_srs crs:84 "$@" "$$(find "${TMP}" -name US_HistStateTerr_Gen001.shp)"
 
 define STATE_RECIPES
 
-${congress}_CONGRESS_START_YEAR := $(shell node congress-start-year.js ${congress})
+$${TMP}/${congress}-states.geojson: $${TMP}/states.geojson $${CONGRESS_START_YEAR} $${EXTRACT_STATES_FOR_YEAR}
+	"$${EXTRACT_STATES_FOR_YEAR}" "$$<" "$$$$(($$$$($${CONGRESS_START_YEAR} ${congress}) - 1))" > "$$@"
 
-data/${congress}-states.geojson: data/states.geojson
-	node extract-states-for-year.js "$$<" "$$$$(($${${congress}_CONGRESS_START_YEAR} - 1))" > "$$@"
+$${TMP}/${congress}-labelled-states.geojson: $${TMP}/${congress}-states.geojson $${ADD_LABELS}
+	"$${ADD_LABELS}" < "$$<" > "$$@"
 
-data/${congress}-labelled-states.geojson: data/${congress}-states.geojson
-	node add-labels.js "$$<" > "$$@"
-
-data/${congress}-states.mbtiles: data/${congress}-labelled-states.geojson
-	tippecanoe -o "$$@" -f -z 12 -Z 0 -B 0 -pS -pp -l states -n "states $$*" "$$<"
+$${OUTPUT}/${congress}-states.mbtiles: $${TMP}/${congress}-labelled-states.geojson
+	mkdir -p "$${OUTPUT}"
+	tippecanoe -o "$$@" -f -z 12 -Z 0 -B 0 -pS -pp -l states -n "states ${congress}" "$$<"
 
 endef
-
-$(foreach congress,${CONGRESSES},$(eval ${STATE_RECIPES}))
 
 #################################################
 # DISTRICTS
@@ -60,23 +66,25 @@ $(foreach congress,${CONGRESSES},$(eval ${STATE_RECIPES}))
 
 define DISTRICT_RECIPES
 
-data/${congress}-districts.zip:
+$${TMP}/${congress}-districts.zip:
+	mkdir -p "${TMP}"
 	curl --fail-early --fail "${DISTRICTS_DATA_URL}/districts${congress}.zip" > "$$@"
 
-data/${congress}-districts.geojson: data/${congress}-districts.zip
-	# Get the shape file from the zipfile
+$${TMP}/${congress}-districts.geojson: $${TMP}/${congress}-districts.zip
+	# Get the shape file from the zipfile99p
 	unzip -d "$$(dir $$@)" -jo "$$<"
 
 	# Convert shape file to GeoJSON
-	ogr2ogr -f GeoJSON -t_srs crs:84 "$$@" "data/districts${congress}.shp"
+	ogr2ogr -f GeoJSON -t_srs crs:84 "$$@" "$${TMP}/districts${congress}.shp"
 
-data/${congress}-proc-districts.geojson: data/${congress}-districts.geojson
-	node process-from-ucla.js "$$<" "$$@"
+$${TMP}/${congress}-proc-districts.geojson: $${TMP}/${congress}-districts.geojson $${CHOP} $${PROCESS_DISTRICTS}
+	"$${CHOP}" < "$$<" | "$${PROCESS_DISTRICTS}" > "$$@"
 
-data/${congress}-labelled-districts.geojson: data/${congress}-proc-districts.geojson
-	node add-labels.js "$$<" > "$$@"
+$${TMP}/${congress}-labelled-districts.geojson: $${TMP}/${congress}-proc-districts.geojson $${ADD_LABELS}
+	"$${ADD_LABELS}" < "$$<" > "$$@"
 
-data/${congress}-districts.mbtiles: data/${congress}-labelled-districts.geojson
+$${OUTPUT}/${congress}-districts.mbtiles: $${TMP}/${congress}-labelled-districts.geojson
+	mkdir -p "$${OUTPUT}"
 	tippecanoe -o "$$@" -f -z 12 -Z 0 -B 0 -pS -pp -l districts -n "district ${congress}" "$$<"
 
 endef
@@ -89,8 +97,9 @@ $(foreach congress,${CONGRESSES},$(eval ${DISTRICT_RECIPES}))
 
 define STYLE_RECIPES
 
-data/${congress}-style.json: style-template.json
-	node make-style.js "${congress}" "$${MAPBOX_USER}" > "$$@"
+$${OUTPUT}/${congress}-style.json: $${MAKE_STYLE}
+	mkdir -p "$${OUTPUT}"
+	"$${MAKE_STYLE}" "${congress}" "$${MAPBOX_USER}" > "$$@"
 
 endef
 
@@ -102,16 +111,16 @@ $(foreach congress,${CONGRESSES},$(eval ${STYLE_RECIPES}))
 
 define UPLOADED_RECIPES
 
-data/${congress}-style.json.uploaded: data/${congress}-style.json
-	node upload.js style "$$<" "$${MAPBOX_USER}"
+$${TMP}/${congress}-style.json.uploaded: $${OUTPUT}/${congress}-style.json $${UPLOAD}
+	"$${UPLOAD}" style "$${MAPBOX_USER}" "$$<"
 	touch "$$@"
 
-data/${congress}-states.mbtiles.uploaded: data/${congress}-style.json data/${congress}-states.mbtiles
-	node upload.js states $$^
+$${TMP}/${congress}-states.mbtiles.uploaded: $${OUTPUT}/${congress}-style.json $${OUTPUT}/${congress}-states.mbtiles $${UPLOAD}
+	"$${UPLOAD}" states "$${MAPBOX_USER}" "$${OUTPUT}/${congress}-style.json" "$${OUTPUT}/${congress}-states.mbtiles"
 	touch "$$@"
 
-data/${congress}-districts.mbtiles.uploaded: data/${congress}-style.json data/${congress}-districts.mbtiles
-	node upload.js districts $$^
+$${TMP}/${congress}-districts.mbtiles.uploaded: $${OUTPUT}/${congress}-style.json $${OUTPUT}/${congress}-districts.mbtiles $${UPLOAD}
+	"$${UPLOAD}" districts "$${MAPBOX_USER}" "$${OUTPUT}/${congress}-style.json" "$${OUTPUT}/${congress}-districts.mbtiles"
 	touch "$$@"
 
 endef
@@ -119,10 +128,12 @@ endef
 $(foreach congress,${CONGRESSES},$(eval ${UPLOADED_RECIPES}))
 
 #################################################
-# CLEANING
+# CLEAN
 #################################################
 
 .PHONY: clean
-clean:
-	rm -rf data/US_AtlasHCB_StateTerr_Gen001 data/*.shp data/*.shx data/*.mbtiles \
-		data/*.geojson data/*.dbf data/*.prj data/*.uploaded
+clean: clean-programs
+	rm -rf "${TMP}"/*.geojson "${TMP}"/*.mbtiles *_start_year \
+		$(patsubst %,${TMP}/%,${PROGRAMS}) ${STYLES} ${OUTPUT}
+
+$(foreach congress,${CONGRESSES},$(eval ${STATE_RECIPES}))
