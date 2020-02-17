@@ -1,6 +1,5 @@
 GO_LIB_SOURCES := \
 	$(wildcard src/congresses/*.go) \
-	$(wildcard src/featureProc/*.go) \
 	$(wildcard src/states/*.go) \
 	$(wildcard src/stylemetadata/*.go) \
 	$(wildcard src/utils/*.go) \
@@ -11,7 +10,6 @@ GO_LIB_SOURCES := \
 
 PROGRAMS = \
 	add-labels \
-	chop \
 	congress-start-year \
 	extract-states-for-year \
 	make-style \

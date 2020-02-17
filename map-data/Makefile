@@ -1,7 +1,7 @@
 STATE_DATA_URL = https://publications.newberry.org/ahcbp/downloads/gis/US_AtlasHCB_StateTerr_Gen001.zip
 DISTRICTS_DATA_URL = http://cdmaps.polisci.ucla.edu/shp
 
-CONGRESSES = $(shell seq -f '%03g' 2 2)
+CONGRESSES = $(shell seq -f '%03g' 2 5)
 
 MAPBOX_USER = dshearer
 
@@ -19,7 +19,6 @@ STYLES_UPLOADED = $(patsubst %,${TMP}/%-style.json.uploaded,${CONGRESSES})
 
 # programs
 ADD_LABELS = ${TMP}/add-labels
-CHOP = ${TMP}/chop
 CONGRESS_START_YEAR = ${TMP}/congress-start-year
 EXTRACT_STATES_FOR_YEAR = ${TMP}/extract-states-for-year
 MAKE_STYLE = ${TMP}/make-style
@@ -77,8 +76,8 @@ $${TMP}/${congress}-districts.geojson: $${TMP}/${congress}-districts.zip
 	# Convert shape file to GeoJSON
 	ogr2ogr -f GeoJSON -t_srs crs:84 "$$@" "$${TMP}/districts${congress}.shp"
 
-$${TMP}/${congress}-proc-districts.geojson: $${TMP}/${congress}-districts.geojson $${CHOP} $${PROCESS_DISTRICTS}
-	"$${CHOP}" < "$$<" | "$${PROCESS_DISTRICTS}" > "$$@"
+$${TMP}/${congress}-proc-districts.geojson: $${TMP}/${congress}-districts.geojson $${PROCESS_DISTRICTS}
+	"$${PROCESS_DISTRICTS}" < "$$<" > "$$@"
 
 $${TMP}/${congress}-labelled-districts.geojson: $${TMP}/${congress}-proc-districts.geojson $${ADD_LABELS}
 	"$${ADD_LABELS}" < "$$<" > "$$@"

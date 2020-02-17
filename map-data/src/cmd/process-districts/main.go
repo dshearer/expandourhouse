@@ -1,16 +1,19 @@
 package main
 
 import (
-	"errors"
+	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strconv"
 
-	"expandourhouse.com/mapdata/featureProc"
 	"expandourhouse.com/mapdata/states"
 	"github.com/paulmach/orb/geojson"
+	"github.com/vladimirvivien/automi/collectors"
+	"github.com/vladimirvivien/automi/stream"
 )
 
 func intToOrdinal(i int) string {
@@ -28,23 +31,23 @@ func intToOrdinal(i int) string {
 	return fmt.Sprintf("%v%v", i, suffix)
 }
 
-func cleanUpProps(f *geojson.Feature) (*geojson.Feature, error) {
+func cleanUpProps(f *geojson.Feature) *geojson.Feature {
 	// parse ID
 	id, ok := f.Properties["ID"].(string)
 	if !ok {
-		return nil, errors.New("Feature doesn't have ID")
+		log.Panic("Feature doesn't have ID")
 	}
 	stateFips, err := strconv.Atoi(id[0:3])
 	if err != nil {
-		return nil, err
+		log.Panic(err)
 	}
 	congress, err := strconv.Atoi(id[3:6])
 	if err != nil {
-		return nil, err
+		log.Panic(err)
 	}
 	district, err := strconv.Atoi(id[10:12])
 	if err != nil {
-		return nil, err
+		log.Panic(err)
 	}
 
 	// clean up feature's properties
@@ -57,10 +60,10 @@ func cleanUpProps(f *geojson.Feature) (*geojson.Feature, error) {
 		"group":     "boundary",
 	}
 
-	return f, nil
+	return f
 }
 
-func addTitles(f *geojson.Feature) (*geojson.Feature, error) {
+func addTitles(f *geojson.Feature) *geojson.Feature {
 	district := f.Properties["district"].(int)
 	var titleShortNbr string
 	if district == 0 {
@@ -79,7 +82,51 @@ func addTitles(f *geojson.Feature) (*geojson.Feature, error) {
 	f.Properties["titleShort"] = fmt.Sprintf("%v %v", state.Usps, titleShortNbr)
 	f.Properties["titleLong"] = fmt.Sprintf("%v's %v Congressional District",
 		state.Name, titleLongNbr)
-	return f, nil
+	return f
+}
+
+type geoJsonReader struct {
+	decoder *json.Decoder
+	ctx     context.Context
+	outChan chan interface{}
+}
+
+func newGeoJsonReader(r io.Reader) *geoJsonReader {
+	var reader geoJsonReader
+	reader.decoder = json.NewDecoder(r)
+	reader.outChan = make(chan interface{})
+	return &reader
+}
+
+func (r *geoJsonReader) read() {
+	defer close(r.outChan)
+
+	// parse json
+	var collect geojson.FeatureCollection
+	if err := r.decoder.Decode(&collect); err != nil {
+		log.Panic(err)
+	}
+
+	features := collect.Features
+	for len(features) > 0 {
+		f := features[0]
+		select {
+		case r.outChan <- f:
+			features = features[1:]
+		case <-r.ctx.Done():
+			return
+		}
+	}
+}
+
+func (r *geoJsonReader) Open(ctx context.Context) error {
+	r.ctx = ctx
+	go r.read()
+	return nil
+}
+
+func (r *geoJsonReader) GetOutput() <-chan interface{} {
+	return r.outChan
 }
 
 func main() {
@@ -91,15 +138,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	proc := featureProc.NewWithReader(os.Stdin, os.Stdout).
-		Map(cleanUpProps).
-		Filter(func(f *geojson.Feature) (bool, error) {
-			// filter out invalid districts (e.g., -1 for Indian lands)
-			return f.Properties["district"].(int) >= 0, nil
-		}).
-		Map(addTitles)
+	strm := stream.New(newGeoJsonReader(os.Stdin))
 
-	if err := proc.Run(); err != nil {
+	strm.
+		Map(cleanUpProps).
+		Filter(func(f *geojson.Feature) bool {
+			// filter out invalid districts (e.g., -1 for Indian lands)
+			return f.Properties["district"].(int) >= 0
+		}).
+		Map(addTitles).
+		Into(collectors.Func(func(data interface{}) error {
+			f := data.(*geojson.Feature)
+			encoder := json.NewEncoder(os.Stdout)
+			return encoder.Encode(f)
+		}))
+
+	if err := <-strm.Open(); err != nil {
 		log.Panic(err)
 	}
 }

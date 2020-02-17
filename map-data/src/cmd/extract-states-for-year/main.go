@@ -2,13 +2,15 @@ package main
 
 import (
 	"encoding/json"
-	"expandourhouse.com/mapdata/featureProc"
 	"flag"
-	"github.com/paulmach/orb/geojson"
 	"log"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/paulmach/orb/geojson"
+	"github.com/vladimirvivien/automi/collectors"
+	"github.com/vladimirvivien/automi/stream"
 )
 
 const gUsage = "usage: extract-states-for-year HISTORICAL_STATES_FILE YEAR\n"
@@ -61,39 +63,46 @@ func main() {
 		log.Panic(err)
 	}
 
-	// make processor
-	supplier := collectionSupplier{&features, 0}
-	proc := featureProc.NewWithSupplier(&supplier, os.Stdout).
+	// make stream
+	strm := stream.New(features.Features)
+
+	strm.
 		// filter states by date
-		Filter(func(f *geojson.Feature) (bool, error) {
+		Filter(func(f *geojson.Feature) bool {
 			// parse dates
 			startDateStr := f.Properties.MustString("START_DATE", "")
 			endDateStr := f.Properties.MustString("END_DATE", "")
 			if len(startDateStr) == 0 || len(endDateStr) == 0 {
-				return false, nil
+				return false
 			}
 			startDate, err := time.Parse("2006/01/02", startDateStr)
 			if err != nil {
-				return false, err
+				log.Panic(err)
 			}
 			endDate, err := time.Parse("2006/01/02", endDateStr)
 			if err != nil {
-				return false, err
+				log.Panic(err)
 			}
 
-			return startDate.Year() <= year && year <= endDate.Year(), nil
+			return startDate.Year() <= year && year <= endDate.Year()
 		}).
 		// add some properties
-		Map(func(f *geojson.Feature) (*geojson.Feature, error) {
+		Map(func(f *geojson.Feature) *geojson.Feature {
 			f.Properties["group"] = "boundary"
 			f.Properties["id"] = f.Properties["ID"]
 			delete(f.Properties, "ID")
 			f.Properties["titleLong"] = f.Properties["FULL_NAME"]
 			f.Properties["titleShort"] = f.Properties["ABBR_NAME"]
-			return f, nil
-		})
+			return f
+		}).
+		// write to stdout
+		Into(collectors.Func(func(data interface{}) error {
+			f := data.(*geojson.Feature)
+			encoder := json.NewEncoder(os.Stdout)
+			return encoder.Encode(f)
+		}))
 
-	if err := proc.Run(); err != nil {
+	if err := <-strm.Open(); err != nil {
 		log.Panic(err)
 	}
 }
