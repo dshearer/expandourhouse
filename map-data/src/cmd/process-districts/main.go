@@ -1,11 +1,9 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"strconv"
@@ -71,50 +69,6 @@ func addTitles(f *geojson.Feature) *geojson.Feature {
 	return f
 }
 
-type geoJsonReader struct {
-	decoder *json.Decoder
-	ctx     context.Context
-	outChan chan interface{}
-}
-
-func newGeoJsonReader(r io.Reader) *geoJsonReader {
-	var reader geoJsonReader
-	reader.decoder = json.NewDecoder(r)
-	reader.outChan = make(chan interface{})
-	return &reader
-}
-
-func (r *geoJsonReader) read() {
-	defer close(r.outChan)
-
-	// parse json
-	var collect geojson.FeatureCollection
-	if err := r.decoder.Decode(&collect); err != nil {
-		log.Panic(err)
-	}
-
-	features := collect.Features
-	for len(features) > 0 {
-		f := features[0]
-		select {
-		case r.outChan <- f:
-			features = features[1:]
-		case <-r.ctx.Done():
-			return
-		}
-	}
-}
-
-func (r *geoJsonReader) Open(ctx context.Context) error {
-	r.ctx = ctx
-	go r.read()
-	return nil
-}
-
-func (r *geoJsonReader) GetOutput() <-chan interface{} {
-	return r.outChan
-}
-
 func main() {
 	log.SetOutput(os.Stderr)
 
@@ -124,8 +78,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	strm := stream.New(newGeoJsonReader(os.Stdin))
-
+	strm := stream.New(newGeoJSONReader(os.Stdin))
 	strm.
 		Map(cleanUpProps).
 		Filter(func(f *geojson.Feature) bool {
