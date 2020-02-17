@@ -11,25 +11,11 @@ import (
 	"strconv"
 
 	"expandourhouse.com/mapdata/states"
+	"expandourhouse.com/mapdata/utils"
 	"github.com/paulmach/orb/geojson"
 	"github.com/vladimirvivien/automi/collectors"
 	"github.com/vladimirvivien/automi/stream"
 )
-
-func intToOrdinal(i int) string {
-	if i < 0 {
-		panic("Can't handle negative int")
-	}
-
-	suffixes := []string{"th", "st", "nd", "rd", "th", "th", "th", "th", "th", "th"}
-	var suffix string
-	if i%100 == 11 || i%100 == 12 || i%100 == 13 {
-		suffix = suffixes[0]
-	} else {
-		suffix = suffixes[i%10]
-	}
-	return fmt.Sprintf("%v%v", i, suffix)
-}
 
 func cleanUpProps(f *geojson.Feature) *geojson.Feature {
 	// parse ID
@@ -75,7 +61,7 @@ func addTitles(f *geojson.Feature) *geojson.Feature {
 	if district == 0 {
 		titleLongNbr = "At Large"
 	} else {
-		titleLongNbr = intToOrdinal(district)
+		titleLongNbr = utils.IntToOrdinal(district)
 	}
 	state := states.ByFips[f.Properties["stateFips"].(int)]
 
