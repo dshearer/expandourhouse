@@ -8,7 +8,7 @@ GO_LIB_SOURCES := \
 	src/go.mod \
 	src/go.sum
 
-PROGRAMS = \
+_PROGRAMS = \
 	add-labels \
 	congress-start-year \
 	extract-states-for-year \
@@ -35,11 +35,11 @@ clean-${prog}:
 .PHONY: clean-${prog}
 endef
 
-$(foreach prog,${PROGRAMS},$(eval ${PROGRAM_TARGETS}))
+$(foreach prog,${_PROGRAMS},$(eval ${PROGRAM_TARGETS}))
 
 .PHONY: programs clean-programs
 
-programs: $(patsubst %,${TMP}/%,${PROGRAMS})
+programs: $(patsubst %,${TMP}/%,${_PROGRAMS})
 
-clean-programs: $(patsubst %,clean-%,${PROGRAMS})
+clean-programs: $(patsubst %,clean-%,${_PROGRAMS})
 	rm -f src/cmd/make-style/styleTemplate.go src/states/states.go
