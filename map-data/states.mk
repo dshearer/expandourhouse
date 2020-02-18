@@ -3,14 +3,6 @@
 #
 # This Makefile defines recipes for making tile files for state borders.
 # One tile file is made for a given session of Congress.
-#
-# Process:
-# I.   Download shape data for states for nth Congress from 
-#      publications.newberry.org
-# II.  Convert shape file into GeoJSON
-# III. Extract the features for the states of the nth Congress
-# IV.  Add label features, one for each state feature
-# V.   Convert to tile file, and save it to output/n-states.mbtiles
 ###############################################################################
 
 STATE_DATA_URL = https://publications.newberry.org/ahcbp/downloads/gis/US_AtlasHCB_StateTerr_Gen001.zip

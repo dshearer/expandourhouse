@@ -3,21 +3,6 @@
 #
 # This Makefile defines recipes for making tile files for district borders.
 # One tile file is made for a given session of Congress.
-#
-# Process (for nth session of Congress):
-# I.   Download shape data for districts for nth Congress from
-#      cdmaps.polisci.ucla.edu
-# II.  Convert shape file into GeoJSON
-# III. Process the district features, thus:
-#    A. Clean up the feature's properties:
-#        1. Parse the "ID" code into separate "stateFips", "congress",
-#           and "district" properties
-#        2. Add "state" property containing the USPS code for the state
-#        3. Add "group" property containing "boundary" (used in MapBox style)
-#    B. Filter out invalid districts
-#    C. Add short and long titles as feature properties
-# IV. Add label features, one for each district feature
-# V.  Convert to tile file, and save it to output/n-districts.mbtiles
 ###############################################################################
 
 DISTRICTS_DATA_URL = http://cdmaps.polisci.ucla.edu/shp
