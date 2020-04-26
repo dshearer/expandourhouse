@@ -1,5 +1,7 @@
 GO_LIB_SOURCES := \
+	$(wildcard src/bulkInserter/*.go) \
 	$(wildcard src/congresses/*.go) \
+	$(wildcard src/districtDb/*.go) \
 	$(wildcard src/states/*.go) \
 	$(wildcard src/stylemetadata/*.go) \
 	$(wildcard src/utils/*.go) \
@@ -13,6 +15,7 @@ _PROGRAMS = \
 	congress-start-year \
 	extract-states-for-year \
 	make-style \
+	mark-irregular-states \
 	process-districts \
 	upload
 

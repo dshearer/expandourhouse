@@ -24,7 +24,7 @@ $${TMP}/${congress}-states.geojson: $${TMP}/states.geojson $${PROGRAMS}
 	"$${EXTRACT_STATES_FOR_YEAR}" "$$<" "$$$${YEAR}" > "$$@"
 
 $${TMP}/${congress}-labelled-states.geojson: $${TMP}/${congress}-states.geojson $${PROGRAMS}
-	"$${ADD_LABELS}" < "$$<" > "$$@"
+	"$${ADD_LABELS}" < "$$<" | "$${MARK_IRREG_STATES}" ${congress} > "$$@"
 
 $${OUTPUT}/${congress}-states.mbtiles: $${TMP}/${congress}-labelled-states.geojson
 	mkdir -p "$${OUTPUT}"

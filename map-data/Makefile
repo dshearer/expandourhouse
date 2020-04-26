@@ -21,6 +21,7 @@ ADD_LABELS = ${TMP}/add-labels
 CONGRESS_START_YEAR = ${TMP}/congress-start-year
 EXTRACT_STATES_FOR_YEAR = ${TMP}/extract-states-for-year
 MAKE_STYLE = ${TMP}/make-style
+MARK_IRREG_STATES = ${TMP}/mark-irregular-states
 PROCESS_DISTRICTS = ${TMP}/process-districts
 UPLOAD = ${TMP}/upload
 PROGRAMS = \
@@ -28,6 +29,7 @@ PROGRAMS = \
 	${CONGRESS_START_YEAR} \
 	${EXTRACT_STATES_FOR_YEAR} \
 	${MAKE_STYLE} \
+	${MARK_IRREG_STATES} \
 	${PROCESS_DISTRICTS} \
 	${UPLOAD}
 

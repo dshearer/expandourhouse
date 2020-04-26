@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/paulmach/orb/geojson"
@@ -93,6 +94,8 @@ func main() {
 			delete(f.Properties, "ID")
 			f.Properties["titleLong"] = f.Properties["FULL_NAME"]
 			f.Properties["titleShort"] = f.Properties["ABBR_NAME"]
+			f.Properties["type"] = strings.ToLower(f.Properties["TERR_TYPE"].(string))
+			delete(f.Properties, "TERR_TYPE")
 			return f
 		}).
 		// write to stdout
