@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 
@@ -23,6 +24,19 @@ var errInvalidArgs = errors.New("Invalid args")
 
 const gTokenEnvVar = "MAPBOX_WRITE_SCOPE_ACCESS_TOKEN"
 
+type reportingReader struct {
+	r        io.Reader
+	callback func(int)
+}
+
+func (self *reportingReader) Read(p []byte) (int, error) {
+	n, err := self.r.Read(p)
+	if n > 0 {
+		self.callback(n)
+	}
+	return n, err
+}
+
 func accessToken() (string, error) {
 	tok, ok := os.LookupEnv(gTokenEnvVar)
 	if !ok {
@@ -33,6 +47,14 @@ func accessToken() (string, error) {
 
 func uploadTileset(statesOrDistricts, stylePath, tilesetPath, username,
 	mapboxToken string) error {
+
+	shouldUpload, err := ShouldUploadTileset(statesOrDistricts, stylePath, tilesetPath)
+	if err != nil {
+		return err
+	}
+	if !shouldUpload {
+		return nil
+	}
 
 	// get some stuff from the style
 	f, err := os.Open(stylePath)
@@ -65,6 +87,26 @@ func uploadTileset(statesOrDistricts, stylePath, tilesetPath, username,
 		return err
 	}
 
+	// get tileset file size
+	stat, err := os.Stat(tilesetPath)
+	if err != nil {
+		return err
+	}
+
+	// make tileset reader
+	progBar := ProgBar{Total: int(stat.Size())}
+	tilesetF, err := os.Open(tilesetPath)
+	if err != nil {
+		return err
+	}
+	defer tilesetF.Close()
+	tilesetF2 := reportingReader{
+		r: tilesetF,
+		callback: func(n int) {
+			progBar.AddProgress(n)
+		},
+	}
+
 	// stage tileset on AWS S3
 	fmt.Print("Staging tileset on AWS...")
 	creds := credentials.NewStaticCredentials(awsCreds.AccessKeyID,
@@ -77,18 +119,10 @@ func uploadTileset(statesOrDistricts, stylePath, tilesetPath, username,
 		return err
 	}
 	uploader := s3manager.NewUploader(awsSess)
-	if _, err := f.Seek(0, 0); err != nil {
-		return err
-	}
-	tilesetF, err := os.Open(tilesetPath)
-	if err != nil {
-		return err
-	}
-	defer tilesetF.Close()
 	_, err = uploader.Upload(&s3manager.UploadInput{
 		Bucket: aws.String(awsCreds.Bucket),
 		Key:    aws.String(awsCreds.Key),
-		Body:   tilesetF,
+		Body:   &tilesetF2,
 	})
 	if err != nil {
 		return err
@@ -98,6 +132,11 @@ func uploadTileset(statesOrDistricts, stylePath, tilesetPath, username,
 	// send it to Mapbox
 	err = mapbox.CreateUpload(tilesetID, tilesetName, awsCreds.URL)
 	if err != nil {
+		return err
+	}
+
+	// save hash
+	if err := RecordUploadedTileset(statesOrDistricts, stylePath, tilesetPath); err != nil {
 		return err
 	}
 
