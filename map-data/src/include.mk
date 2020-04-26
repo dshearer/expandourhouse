@@ -17,6 +17,7 @@ _PROGRAMS = \
 	make-style \
 	mark-irregular-states \
 	process-districts \
+	reduce-precision \
 	upload
 
 GO = GOPATH="${TMP}" go

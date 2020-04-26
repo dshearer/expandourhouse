@@ -3,8 +3,8 @@
 #
 # Use these to control for which congresses we will generate map data.
 ###############################################################################
-FIRST_CONGRESS = 11
-LAST_CONGRESS = 11
+FIRST_CONGRESS = 81
+LAST_CONGRESS = 81
 
 # derived params
 CONGRESSES = $(shell seq -f '%03g' ${FIRST_CONGRESS} ${LAST_CONGRESS})
@@ -23,6 +23,7 @@ EXTRACT_STATES_FOR_YEAR = ${TMP}/extract-states-for-year
 MAKE_STYLE = ${TMP}/make-style
 MARK_IRREG_STATES = ${TMP}/mark-irregular-states
 PROCESS_DISTRICTS = ${TMP}/process-districts
+REDUCE_PRECISION = ${TMP}/reduce-precision
 UPLOAD = ${TMP}/upload
 PROGRAMS = \
 	${ADD_LABELS} \
@@ -31,6 +32,7 @@ PROGRAMS = \
 	${MAKE_STYLE} \
 	${MARK_IRREG_STATES} \
 	${PROCESS_DISTRICTS} \
+	${REDUCE_PRECISION} \
 	${UPLOAD}
 
 .PHONY: default

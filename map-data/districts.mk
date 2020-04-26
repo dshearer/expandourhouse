@@ -23,14 +23,11 @@ $${TMP}/${congress}-districts.geojson: $${TMP}/${congress}-districts.zip
 	ogr2ogr -f GeoJSON -t_srs crs:84 "$$@" "$${TMP}/districts${congress}.shp"
 
 $${TMP}/${congress}-proc-districts.geojson: $${TMP}/${congress}-districts.geojson $${PROGRAMS}
-	"$${PROCESS_DISTRICTS}" < "$$<" > "$$@"
+	"$${PROCESS_DISTRICTS}" < "$$<" | "$${REDUCE_PRECISION}" 3 | "$${ADD_LABELS}" > "$$@"
 
-$${TMP}/${congress}-labelled-districts.geojson: $${TMP}/${congress}-proc-districts.geojson $${PROGRAMS}
-	"$${ADD_LABELS}" < "$$<" > "$$@"
-
-$${OUTPUT}/${congress}-districts.mbtiles: $${TMP}/${congress}-labelled-districts.geojson
+$${OUTPUT}/${congress}-districts.mbtiles: $${TMP}/${congress}-proc-districts.geojson
 	mkdir -p "$${OUTPUT}"
-	tippecanoe -o "$$@" -f -z 12 -Z 0 -B 0 -pS -pp -l districts -n "district ${congress}" "$$<"
+	tippecanoe -o "$$@" -f -z 12 -Z 0 -B 0 -pS -pp --read-parallel -l districts -n "district ${congress}" "$$<"
 
 endef
 

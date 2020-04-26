@@ -5,7 +5,7 @@
 # One tile file is made for a given session of Congress.
 ###############################################################################
 
-STATE_DATA_URL = https://publications.newberry.org/ahcbp/downloads/gis/US_AtlasHCB_StateTerr_Gen001.zip
+STATE_DATA_URL = https://publications.newberry.org/ahcbp/downloads/gis/US_AtlasHCB_StateTerr_Gen01.zip
 
 STATE_TILES = $(patsubst %,${OUTPUT}/%-states.mbtiles,${CONGRESSES})
 
@@ -23,12 +23,12 @@ $${TMP}/${congress}-states.geojson: $${TMP}/states.geojson $${PROGRAMS}
 	YEAR=$$$$(($$$$($${CONGRESS_START_YEAR} ${congress}) - 1)) && \
 	"$${EXTRACT_STATES_FOR_YEAR}" "$$<" "$$$${YEAR}" > "$$@"
 
-$${TMP}/${congress}-labelled-states.geojson: $${TMP}/${congress}-states.geojson $${PROGRAMS}
-	"$${ADD_LABELS}" < "$$<" | "$${MARK_IRREG_STATES}" ${congress} > "$$@"
+$${TMP}/${congress}-proc-states.geojson: $${TMP}/${congress}-states.geojson $${PROGRAMS}
+	"$${ADD_LABELS}" < "$$<" | "$${REDUCE_PRECISION}" 3 | "$${MARK_IRREG_STATES}" ${congress} > "$$@"
 
-$${OUTPUT}/${congress}-states.mbtiles: $${TMP}/${congress}-labelled-states.geojson
+$${OUTPUT}/${congress}-states.mbtiles: $${TMP}/${congress}-proc-states.geojson
 	mkdir -p "$${OUTPUT}"
-	tippecanoe -o "$$@" -f -z 12 -Z 0 -B 0 -pS -pp -l states -n "states ${congress}" "$$<"
+	tippecanoe -o "$$@" -f -z 12 -Z 0 -B 0 -pS -pp --read-parallel -l states -n "states ${congress}" "$$<"
 
 endef
 
