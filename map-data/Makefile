@@ -3,14 +3,15 @@
 #
 # Use these to control for which congresses we will generate map data.
 ###############################################################################
-FIRST_CONGRESS = 81
-LAST_CONGRESS = 81
+FIRST_CONGRESS = 6
+LAST_CONGRESS = 6
 
 # derived params
 CONGRESSES = $(shell seq -f '%03g' ${FIRST_CONGRESS} ${LAST_CONGRESS})
 
-# MapBox settings
+# Settings
 MAPBOX_USER = dshearer
+COORD_PRECISION = 6
 
 # dirs
 TMP = ${PWD}/.tmp
@@ -49,10 +50,28 @@ include uploading.mk
 #################################################
 
 .PHONY: build
-build: ${STATE_TILES} ${DISTRICT_TILES} ${STYLES}
+build: build-states build-districts build-styles
+
+.PHONY: build-states
+build-states: ${STATE_TILES}
+
+.PHONY: build-districts
+build-districts: ${DISTRICT_TILES}
+
+.PHONY: build-styles
+build-styles: ${STYLES}
 
 .PHONY: upload
-upload: ${STYLES_UPLOADED} ${STATES_UPLOADED} ${DISTRICTS_UPLOADED}
+upload: upload-states upload-districts upload-styles
+
+.PHONY: upload-states
+upload-states: ${STATES_UPLOADED}
+
+.PHONY: upload-districts
+upload-districts: ${STATES_DISTRICTS}
+
+.PHONY: upload-styles
+upload-styles: ${STYLES_UPLOADED}
 
 #################################################
 # CLEAN

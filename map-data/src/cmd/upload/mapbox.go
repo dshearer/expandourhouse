@@ -172,3 +172,28 @@ func (mb *Mapbox) MakeAwsCreds() (*MapboxAwsCreds, error) {
 	}
 	return &creds, nil
 }
+
+func (mb *Mapbox) TilesetExists(id string) (bool, error) {
+	// make request
+	resp, err := mb.client.Get(mb.makeUrl("/tilesets/v1/{user}"))
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
+	if err := makeErrFromResp(resp, "Couldn't get tileset "+id); err != nil {
+		return false, err
+	}
+
+	// handle response
+	var tilesets []map[string]interface{}
+	decoder := json.NewDecoder(resp.Body)
+	if err := decoder.Decode(&tilesets); err != nil {
+		return false, errors.Wrapf(err, "Failed to parse tileset list")
+	}
+	for _, ts := range tilesets {
+		if ts["id"].(string) == id {
+			return true, nil
+		}
+	}
+	return false, nil
+}

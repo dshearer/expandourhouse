@@ -48,14 +48,6 @@ func accessToken() (string, error) {
 func uploadTileset(statesOrDistricts, stylePath, tilesetPath, username,
 	mapboxToken string) error {
 
-	shouldUpload, err := ShouldUploadTileset(statesOrDistricts, stylePath, tilesetPath)
-	if err != nil {
-		return err
-	}
-	if !shouldUpload {
-		return nil
-	}
-
 	// get some stuff from the style
 	f, err := os.Open(stylePath)
 	if err != nil {
@@ -80,8 +72,26 @@ func uploadTileset(statesOrDistricts, stylePath, tilesetPath, username,
 		tilesetName = metadata.DistrictsTilesetName
 	}
 
-	// get AWS creds from Mapbox
+	// check if tileset exists on Mapbox
 	mapbox := NewMapbox(mapboxToken, username)
+	exists, err := mapbox.TilesetExists(tilesetID)
+	if err != nil {
+		return err
+	}
+
+	if exists {
+		// check if file has changed
+		hasChanged, err := FileHasChanged(tilesetPath)
+		if err != nil {
+			return err
+		}
+		if !hasChanged {
+			fmt.Println("No need to upload: tileset hasn't changed")
+			return nil
+		}
+	}
+
+	// get AWS creds from Mapbox
 	awsCreds, err := mapbox.MakeAwsCreds()
 	if err != nil {
 		return err
@@ -136,7 +146,7 @@ func uploadTileset(statesOrDistricts, stylePath, tilesetPath, username,
 	}
 
 	// save hash
-	if err := RecordUploadedTileset(statesOrDistricts, stylePath, tilesetPath); err != nil {
+	if err := RecordUploaded(tilesetPath); err != nil {
 		return err
 	}
 
@@ -153,6 +163,12 @@ func uploadStyle(args []string) error {
 	username := args[0]
 	stylePath := args[1]
 
+	// get Mapbox token
+	mapboxToken, err := accessToken()
+	if err != nil {
+		return err
+	}
+
 	// get style name from style file
 	f, err := os.Open(stylePath)
 	if err != nil {
@@ -166,14 +182,7 @@ func uploadStyle(args []string) error {
 	}
 	styleName := style["name"].(string)
 
-	// get Mapbox token
-	mapboxToken, err := accessToken()
-	if err != nil {
-		return err
-	}
-
 	// look for existing style
-	log.Println("Looking for existing style")
 	mapbox := NewMapbox(mapboxToken, username)
 	styleInfos, err := mapbox.ListStyles()
 	if err != nil {
@@ -184,6 +193,18 @@ func uploadStyle(args []string) error {
 		if styleInfo.Name == styleName {
 			styleID = &styleInfo.ID
 			break
+		}
+	}
+
+	if styleID != nil {
+		// check if file has changed
+		hasChanged, err := FileHasChanged(stylePath)
+		if err != nil {
+			return err
+		}
+		if !hasChanged {
+			fmt.Println("No need to upload: style hasn't changed")
+			return nil
 		}
 	}
 
@@ -199,6 +220,11 @@ func uploadStyle(args []string) error {
 		err = mapbox.UpdateStyle(*styleID, f)
 	}
 	if err != nil {
+		return err
+	}
+
+	// save hash
+	if err := RecordUploaded(stylePath); err != nil {
 		return err
 	}
 
