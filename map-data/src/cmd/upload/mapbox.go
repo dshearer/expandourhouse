@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 
@@ -124,6 +125,92 @@ func (mb *Mapbox) UpdateStyle(styleID string, r io.Reader) error {
 	if err := makeErrFromResp(resp, "Couldn't update style"); err != nil {
 		return err
 	}
+	return nil
+}
+
+func (mb *Mapbox) DeleteStylesWithName(name string) error {
+	// list styles
+	styles, err := mb.ListStyles()
+	if err != nil {
+		return err
+	}
+
+	// filter by name
+	var stylesWithName []*Style
+	for _, style := range styles {
+		if style.Name == name {
+			stylesWithName = append(stylesWithName, style)
+		}
+	}
+
+	// get etags
+	etags := make(map[string]string)
+	for _, style := range stylesWithName {
+		// send request
+		req, err := http.NewRequest(http.MethodGet, mb.makeUrl("/styles/v1/{user}/"+style.ID), nil)
+		if err != nil {
+			return err
+		}
+		resp, err := mb.client.Do(req)
+		if err != nil {
+			return err
+		}
+
+		// get etag
+		defer resp.Body.Close()
+		if resp.StatusCode == 404 {
+			continue
+		}
+		if err := makeErrFromResp(resp, "Failed to get style"); err != nil {
+			return err
+		}
+		etag := resp.Header.Get("ETag")
+		if len(etag) == 0 {
+			return errors.New("No etag for style")
+		}
+
+		// check name
+		var newStyle Style
+		decoder := json.NewDecoder(resp.Body)
+		if err := decoder.Decode(&newStyle); err != nil {
+			return err
+		}
+		if newStyle.Name != name {
+			continue
+		}
+
+		etags[style.ID] = etag
+	}
+
+	// delete styles
+	nbrDeleted := 0
+	for id, etag := range etags {
+		// send request
+		req, err := http.NewRequest(http.MethodDelete, mb.makeUrl("/styles/v1/{user}/"+id), nil)
+		if err != nil {
+			return err
+		}
+		req.Header.Add("If-Match", etag)
+		resp, err := mb.client.Do(req)
+		if err != nil {
+			return err
+		}
+
+		// handle response
+		if resp.StatusCode == 412 {
+			continue
+		}
+		if resp.StatusCode == 404 {
+			/* This sometimes happens. There's something wrong with the API... */
+			continue
+		}
+		if err := makeErrFromResp(resp, fmt.Sprintf("Failed to delete style %v", id)); err != nil {
+			return err
+		}
+		nbrDeleted++
+	}
+
+	log.Printf("Deleted %v styles\n", nbrDeleted)
 	return nil
 }
 

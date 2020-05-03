@@ -182,49 +182,18 @@ func uploadStyle(args []string) error {
 	}
 	styleName := style["name"].(string)
 
-	// look for existing style
+	// delete existing styles
 	mapbox := NewMapbox(mapboxToken, username)
-	styleInfos, err := mapbox.ListStyles()
-	if err != nil {
+	if err := mapbox.DeleteStylesWithName(styleName); err != nil {
 		return err
-	}
-	var styleID *string
-	for _, styleInfo := range styleInfos {
-		if styleInfo.Name == styleName {
-			styleID = &styleInfo.ID
-			break
-		}
-	}
-
-	if styleID != nil {
-		// check if file has changed
-		hasChanged, err := FileHasChanged(stylePath)
-		if err != nil {
-			return err
-		}
-		if !hasChanged {
-			fmt.Println("No need to upload: style hasn't changed")
-			return nil
-		}
 	}
 
 	// upload style
 	if _, err := f.Seek(0, 0); err != nil {
 		return err
 	}
-	if styleID == nil {
-		log.Println("Making new style")
-		err = mapbox.CreateStyle(f)
-	} else {
-		log.Println("Updating existing style")
-		err = mapbox.UpdateStyle(*styleID, f)
-	}
-	if err != nil {
-		return err
-	}
-
-	// save hash
-	if err := RecordUploaded(stylePath); err != nil {
+	log.Printf("Making new style: %v\n", styleName)
+	if err := mapbox.CreateStyle(f); err != nil {
 		return err
 	}
 
