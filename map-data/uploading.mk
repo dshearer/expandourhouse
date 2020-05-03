@@ -2,8 +2,8 @@
 # UPLOADING
 ###############################################################################
 
-STATES_UPLOADED = $(patsubst %,upload-districts-%,${CONGRESSES})
-DISTRICTS_UPLOADED = $(patsubst %,upload-states-%,${CONGRESSES})
+STATES_UPLOADED = $(patsubst %,upload-states-%,${CONGRESSES})
+DISTRICTS_UPLOADED = $(patsubst %,upload-districts-%,${CONGRESSES})
 STYLES_UPLOADED = $(patsubst %,upload-style-%,${CONGRESSES})
 
 define UPLOADED_RECIPES
