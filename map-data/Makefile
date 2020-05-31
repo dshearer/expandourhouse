@@ -3,8 +3,8 @@
 #
 # Use these to control for which congresses we will generate map data.
 ###############################################################################
-FIRST_CONGRESS = 6
-LAST_CONGRESS = 6
+FIRST_CONGRESS = 13
+LAST_CONGRESS = 13
 
 # derived params
 CONGRESSES = $(shell seq -f '%03g' ${FIRST_CONGRESS} ${LAST_CONGRESS})
@@ -35,6 +35,9 @@ PROGRAMS = \
 	${PROCESS_DISTRICTS} \
 	${REDUCE_PRECISION} \
 	${UPLOAD}
+
+TIPPECANOE_OPTS = --force -z 10 -Z 0 --no-line-simplification -b0 -r1 -pk -pf
+#--read-parallel
 
 .PHONY: default
 default: build
@@ -68,7 +71,7 @@ upload: upload-states upload-districts upload-styles
 upload-states: ${STATES_UPLOADED}
 
 .PHONY: upload-districts
-upload-districts: ${STATES_DISTRICTS}
+upload-districts: ${DISTRICTS_UPLOADED}
 
 .PHONY: upload-styles
 upload-styles: ${STYLES_UPLOADED}

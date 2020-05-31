@@ -23,12 +23,12 @@ $${TMP}/${congress}-states.geojson: $${TMP}/states.geojson $${EXTRACT_STATES_FOR
 	YEAR=$$$$(($$$$($${CONGRESS_START_YEAR} ${congress}) - 1)) && \
 	"$${EXTRACT_STATES_FOR_YEAR}" "$$<" "$$$${YEAR}" > "$$@"
 
-$${TMP}/${congress}-proc-states.geojson: $${TMP}/${congress}-states.geojson $${ADD_LABELS} $${REDUCE_PRECISION} $${MARK_IRREG_STATES}
-	"$${ADD_LABELS}" < "$$<" | "$${REDUCE_PRECISION}" "${COORD_PRECISION}" | "$${MARK_IRREG_STATES}" ${congress} > "$$@"
+$${TMP}/${congress}-proc-states.geojson: $${TMP}/${congress}-states.geojson $${ADD_LABELS} $${MARK_IRREG_STATES}
+	"$${ADD_LABELS}" < "$$<" | "$${MARK_IRREG_STATES}" ${congress} > "$$@"
 
 $${OUTPUT}/${congress}-states.mbtiles: $${TMP}/${congress}-proc-states.geojson
 	mkdir -p "$${OUTPUT}"
-	tippecanoe -o "$$@" -f -z 10 -Z 0 -B 0 -pS -pp --read-parallel -l states -n "states ${congress}" "$$<"
+	tippecanoe -o "$$@" ${TIPPECANOE_OPTS} -l states -n "states ${congress}" "$$<"
 
 endef
 
