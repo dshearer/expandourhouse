@@ -64,8 +64,7 @@ func addTitles(f *geojson.Feature) *geojson.Feature {
 	state := states.ByFips[f.Properties["stateFips"].(int)]
 
 	f.Properties["titleShort"] = fmt.Sprintf("%v %v", state.Usps, titleShortNbr)
-	f.Properties["titleLong"] = fmt.Sprintf("%v's %v Congressional District",
-		state.Name, titleLongNbr)
+	f.Properties["titleLong"] = fmt.Sprintf("%v District", titleLongNbr)
 	return f
 }
 

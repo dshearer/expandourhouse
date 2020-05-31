@@ -4,12 +4,13 @@ package main
 
 import (
 	"encoding/json"
-	"expandourhouse.com/mapdata/stylemetadata"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"strconv"
+
+	"expandourhouse.com/mapdata/stylemetadata"
 )
 
 var gUSAGE = "usage: makeStyle CONGRESS_NBR MAPBOX_USER\n"
@@ -47,14 +48,12 @@ func main() {
 	style["glyphs"] = fmt.Sprintf("mapbox://fonts/%v/{fontstack}/{range}.pbf",
 		mapboxUser)
 	sources := style["sources"].(map[string]interface{})
-	sources["states"] = map[string]string{
-		"url":  fmt.Sprintf("mapbox://%v", statesTilesetID),
-		"type": "vector",
-	}
-	sources["districts"] = map[string]string{
-		"url":  fmt.Sprintf("mapbox://%v", districtsTilesetID),
-		"type": "vector",
-	}
+	composite := sources["composite"].(map[string]interface{})
+	newURL := fmt.Sprintf("%s,%s,%s",
+		composite["url"],
+		statesTilesetID,
+		districtsTilesetID)
+	composite["url"] = newURL
 	metadata := stylemetadata.StyleMetadata{
 		StatesTilesetID:      statesTilesetID,
 		StatesTilesetName:    statesTilesetName,
