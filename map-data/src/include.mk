@@ -15,7 +15,7 @@ _PROGRAMS = \
 	congress-start-year \
 	extract-states-for-year \
 	make-style \
-	mark-irregular-states \
+	mark-irregular \
 	process-districts \
 	reduce-precision \
 	upload

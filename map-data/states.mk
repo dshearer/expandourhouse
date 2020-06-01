@@ -23,8 +23,8 @@ $${TMP}/${congress}-states.geojson: $${TMP}/states.geojson $${EXTRACT_STATES_FOR
 	YEAR=$$$$(($$$$($${CONGRESS_START_YEAR} ${congress}) - 1)) && \
 	"$${EXTRACT_STATES_FOR_YEAR}" "$$<" "$$$${YEAR}" > "$$@"
 
-$${TMP}/${congress}-proc-states.geojson: $${TMP}/${congress}-states.geojson $${ADD_LABELS} $${MARK_IRREG_STATES}
-	"$${ADD_LABELS}" < "$$<" | "$${MARK_IRREG_STATES}" ${congress} > "$$@"
+$${TMP}/${congress}-proc-states.geojson: $${TMP}/${congress}-states.geojson $${ADD_LABELS} $${MARK_IRREG}
+	"$${ADD_LABELS}" < "$$<" | "$${MARK_IRREG}" "${congress}" > "$$@"
 
 $${OUTPUT}/${congress}-states.mbtiles: $${TMP}/${congress}-proc-states.geojson
 	mkdir -p "$${OUTPUT}"

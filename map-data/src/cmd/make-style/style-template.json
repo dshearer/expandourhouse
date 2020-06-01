@@ -2694,11 +2694,11 @@
             }
         },
         {
-            "id": "irreg-state-bg",
+            "id": "irreg-district-bg",
             "type": "fill",
             "metadata": {"mapbox:group": "1444934295202.7542"},
             "source": "composite",
-            "source-layer": "states",
+            "source-layer": "districts",
             "filter": [
                 "all",
                 [
@@ -2716,6 +2716,33 @@
               ],
             "paint": {
                 "fill-color": "hsl(0, 38%, 91%)",
+                "fill-opacity": 0.5,
+                "fill-antialias": false
+            }
+        },
+        {
+            "id": "reg-district-bg",
+            "type": "fill",
+            "metadata": {"mapbox:group": "1444934295202.7542"},
+            "source": "composite",
+            "source-layer": "districts",
+            "filter": [
+                "all",
+                [
+                  "match",
+                  ["get", "group"],
+                  ["boundary"],
+                  true,
+                  false
+                ],
+                [
+                  "==",
+                  ["get", "irregular"],
+                  false
+                ]
+              ],
+            "paint": {
+                "fill-color": "hsl(246, 42%, 75%)",
                 "fill-opacity": 0.5,
                 "fill-antialias": false
             }
@@ -2794,8 +2821,8 @@
                     9,
                     ["step", ["get", "symbolrank"], 24, 6, 18, 7, 14]
                 ],
-                "text-transform": "uppercase",
-                "text-font": ["DIN Offc Pro Bold", "Arial Unicode MS Bold"],
+                "text-transform": "none",
+                "text-font": ["DIN Offc Pro Regular", "Arial Unicode MS Regular"],
                 "text-field": [
                     "step",
                     ["zoom"],

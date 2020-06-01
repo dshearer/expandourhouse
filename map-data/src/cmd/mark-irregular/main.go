@@ -83,15 +83,13 @@ func main() {
 	strm := stream.New(utils.NewFeatureReader(os.Stdin))
 	strm.
 		Map(func(f *geojson.Feature) *geojson.Feature {
-			if f.Properties["type"] != "state" {
-				return f
-			}
+			stateAbbr := f.Properties["state"].(string)
 
 			var irregHow []string
 			for _, ir := range gIrregTypes {
 				irreg, err := stateIsIrregular(
 					db,
-					f.Properties["titleShort"].(string),
+					stateAbbr,
 					congressNbr,
 					ir)
 				if err != nil {

@@ -42,6 +42,7 @@ func cleanUpProps(f *geojson.Feature) *geojson.Feature {
 		"stateFips": stateFips,
 		"state":     states.ByFips[stateFips].Usps,
 		"group":     "boundary",
+		"type":      "district",
 	}
 
 	return f
