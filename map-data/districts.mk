@@ -22,8 +22,8 @@ $${TMP}/${congress}-districts.geojson: $${TMP}/${congress}-districts.zip
 	# Convert shape file to GeoJSON
 	ogr2ogr -f GeoJSON -t_srs crs:84 "$$@" "$${TMP}/districts${congress}.shp"
 
-$${TMP}/${congress}-proc-districts.geojson: $${TMP}/${congress}-districts.geojson $${PROCESS_DISTRICTS} $${ADD_LABELS} $${MARK_IRREG}
-	"$${PROCESS_DISTRICTS}" < "$$<" | "$${ADD_LABELS}" | "$${MARK_IRREG}" "${congress}" > "$$@"
+$${TMP}/${congress}-proc-districts.geojson: $${TMP}/${congress}-districts.geojson $${PROCESS_DISTRICTS} $${ADD_LABELS} $${MARK_IRREG} ${ADD_DIST_POP}
+	"$${PROCESS_DISTRICTS}" < "$$<" | "$${ADD_LABELS}" | "$${MARK_IRREG}" "${congress}" | "$${ADD_DIST_POP}" > "$$@"
 
 $${OUTPUT}/${congress}-districts.mbtiles: $${TMP}/${congress}-proc-districts.geojson
 	mkdir -p "$${OUTPUT}"

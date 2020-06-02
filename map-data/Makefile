@@ -18,6 +18,7 @@ TMP = ${PWD}/.tmp
 OUTPUT = ${PWD}/output
 
 # programs
+ADD_DIST_POP = ${TMP}/add-district-pop
 ADD_LABELS = ${TMP}/add-labels
 CONGRESS_START_YEAR = ${TMP}/congress-start-year
 EXTRACT_STATES_FOR_YEAR = ${TMP}/extract-states-for-year
@@ -27,6 +28,7 @@ PROCESS_DISTRICTS = ${TMP}/process-districts
 REDUCE_PRECISION = ${TMP}/reduce-precision
 UPLOAD = ${TMP}/upload
 PROGRAMS = \
+	${ADD_DIST_POP} \
 	${ADD_LABELS} \
 	${CONGRESS_START_YEAR} \
 	${EXTRACT_STATES_FOR_YEAR} \

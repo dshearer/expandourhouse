@@ -8,7 +8,7 @@ import (
 
 	"expandourhouse.com/mapdata/bulkInserter"
 	"expandourhouse.com/mapdata/congresses"
-	districtdb "expandourhouse.com/mapdata/districtDb"
+	"expandourhouse.com/mapdata/housedb"
 	"gopkg.in/yaml.v2"
 )
 
@@ -88,13 +88,13 @@ func handleHistLegEntry(ctx context.Context, db *sql.DB,
 
 func GetData(ctx context.Context) (*sql.DB, error) {
 	// connect to DB
-	db, err := districtdb.Connect()
+	db, err := housedb.Connect()
 	if err != nil {
 		return nil, err
 	}
 
 	// get source
-	sourceInst, err := FetchSourceIfChanged(
+	sourceInst, err := housedb.FetchHttpSourceIfChanged(
 		ctx,
 		gSourceName,
 		gSourceUrl,
