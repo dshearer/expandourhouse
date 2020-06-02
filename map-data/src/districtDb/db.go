@@ -35,7 +35,7 @@ FROM representative_term t1 JOIN representative_term t2
 	ON (t1.state = t2.state 
 		AND t1.district_nbr = t2.district_nbr 
 		AND t1.congress_nbr = t2.congress_nbr
-		AND t1.bioguide != t2.bioguidebioguide
+		AND t1.bioguide != t2.bioguide
         AND t1.district_nbr IS NOT NULL)
 /* Find ones that overlap in time */
 WHERE t1.start_date <= t2.start_date AND t1.end_date > t2.start_date;
