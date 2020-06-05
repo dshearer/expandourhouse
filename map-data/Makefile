@@ -3,8 +3,8 @@
 #
 # Use these to control for which congresses we will generate map data.
 ###############################################################################
-FIRST_CONGRESS = 13
-LAST_CONGRESS = 13
+FIRST_CONGRESS = 11
+LAST_CONGRESS = 20
 
 # derived params
 CONGRESSES = $(shell seq -f '%03g' ${FIRST_CONGRESS} ${LAST_CONGRESS})
@@ -84,5 +84,5 @@ upload-styles: ${STYLES_UPLOADED}
 
 .PHONY: clean
 clean: clean-programs
-	rm -rf "${TMP}"/*.geojson "${TMP}"/*.mbtiles *_start_year \
+	rm -rf "${TMP}"/*.geojson "${TMP}"/*.mbtiles "${TMP}"/*.tmp *_start_year \
 		$(patsubst %,${TMP}/%,${PROGRAMS}) ${STYLES} ${OUTPUT}

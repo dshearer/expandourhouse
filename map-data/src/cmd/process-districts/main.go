@@ -9,7 +9,6 @@ import (
 	"strconv"
 
 	"expandourhouse.com/mapdata/states"
-	"expandourhouse.com/mapdata/utils"
 	"github.com/paulmach/orb/geojson"
 	"github.com/vladimirvivien/automi/collectors"
 	"github.com/vladimirvivien/automi/stream"
@@ -56,16 +55,10 @@ func addTitles(f *geojson.Feature) *geojson.Feature {
 	} else {
 		titleShortNbr = fmt.Sprintf("%v", district)
 	}
-	var titleLongNbr string
-	if district == 0 {
-		titleLongNbr = "At Large"
-	} else {
-		titleLongNbr = utils.IntToOrdinal(district)
-	}
 	state := states.ByFips[f.Properties["stateFips"].(int)]
 
 	f.Properties["titleShort"] = fmt.Sprintf("%v %v", state.Usps, titleShortNbr)
-	f.Properties["titleLong"] = fmt.Sprintf("%v District", titleLongNbr)
+	f.Properties["titleLong"] = f.Properties["titleShort"]
 	return f
 }
 

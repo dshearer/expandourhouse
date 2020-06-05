@@ -19,19 +19,19 @@ func makeValuePlaceholder(startNbr int, endNbr int) string {
 
 type Inserter struct {
 	ctx      context.Context
-	db       *sql.DB
+	tx       *sql.Tx
 	table    string
 	numCols  int
 	sqlStart string
 	buffer   []interface{}
 }
 
-func Make(ctx context.Context, db *sql.DB, table string,
+func Make(ctx context.Context, tx *sql.Tx, table string,
 	cols []string) Inserter {
 
 	var inserter Inserter
 	inserter.ctx = ctx
-	inserter.db = db
+	inserter.tx = tx
 	inserter.table = table
 	inserter.numCols = len(cols)
 
@@ -61,7 +61,7 @@ func (self *Inserter) Flush() error {
 	sql := fmt.Sprintf("%v %v", self.sqlStart, strings.Join(placeholders, ", "))
 
 	// execute SQL
-	_, err := self.db.ExecContext(self.ctx, sql, self.buffer...)
+	_, err := self.tx.ExecContext(self.ctx, sql, self.buffer...)
 	if err != nil {
 		return errors.Wrapf(err, "'%v' with %v params", sql, len(self.buffer))
 	}

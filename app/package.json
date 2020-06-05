@@ -3,13 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@mapbox/mapbox-sdk": "^0.9.0",
     "axios": "^0.19.0",
-    "mapbox-gl": "^1.5.0",
+    "lodash": "^4.17.15",
+    "mapbox-gl": "^1.10.1",
     "react": "^16.11.0",
     "react-dom": "^16.11.0",
-    "react-scripts": "3.2.0",
-    "typescript": "^3.6.4",
-    "@mapbox/mapbox-sdk": "^0.9.0"
+    "react-scripts": "^3.4.1",
+    "typescript": "^3.6.4"
   },
   "scripts": {
     "getStyles": "get-styles.js",

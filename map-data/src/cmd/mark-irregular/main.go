@@ -9,7 +9,9 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
 
+	"expandourhouse.com/mapdata/housedb"
 	"expandourhouse.com/mapdata/utils"
 	"github.com/paulmach/orb/geojson"
 	"github.com/vladimirvivien/automi/collectors"
@@ -74,9 +76,16 @@ func main() {
 	}
 
 	// connect to DB
-	db, err := GetData(context.Background())
-	if err != nil {
-		log.Fatal(err)
+	var db *sql.DB
+	for {
+		db, err = GetData(context.Background())
+		if err == nil {
+			break
+		}
+		if !housedb.ErrIsDbLocked(err) {
+			log.Fatal(err)
+		}
+		time.Sleep(3 * time.Second)
 	}
 
 	// find irregular states

@@ -5,21 +5,29 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"time"
 )
 
-func FetchHttpSourceIfChanged(ctx context.Context, name, url string, db *sql.DB) (*SourceInst, error) {
+func FetchHttpSourceIfChanged(ctx context.Context, name, url string, db *sql.Tx) (*SourceInst, error) {
 	// look up source
-	rows, err := db.QueryContext(ctx, "SELECT etag FROM source WHERE name = $1", name)
+	rows, err := db.QueryContext(ctx, "SELECT etag, last_checked FROM source WHERE name = $1", name)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	var oldEtag *string
+	var lastChecked *int
 	isNew := false
 	if !rows.Next() {
 		isNew = true
-	} else if err := rows.Scan(&oldEtag); err != nil {
+	} else if err := rows.Scan(&oldEtag, &lastChecked); err != nil {
 		return nil, err
+	}
+
+	// have we checked recently?
+	if !isNew && time.Now().Before(time.Unix(int64(*lastChecked), 0).Add(24*time.Hour)) {
+		/* assume not modified */
+		return nil, nil
 	}
 
 	// get source

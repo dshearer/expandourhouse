@@ -9,7 +9,7 @@ import (
 	"io/ioutil"
 )
 
-func FetchLocalSourceIfChanged(ctx context.Context, name string, data io.ReadSeeker, db *sql.DB) (*SourceInst, error) {
+func FetchLocalSourceIfChanged(ctx context.Context, name string, data io.ReadSeeker, db *sql.Tx) (*SourceInst, error) {
 	// look up source
 	rows, err := db.QueryContext(ctx, "SELECT etag FROM source WHERE name = $1", name)
 	if err != nil {

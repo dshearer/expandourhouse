@@ -1,17 +1,23 @@
 package housedb
 
 import (
+	"context"
 	"database/sql"
+	"strings"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 )
 
 const gSchema = `
+PRAGMA journal_mode=WAL; /* Big performance improvement */
+
 CREATE TABLE IF NOT EXISTS source(
 	name TEXT NOT NULL,
 	url TEXT,
-	etag TEXT
+	etag TEXT,
+	last_checked INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS representative_term(
@@ -35,8 +41,7 @@ CREATE TABLE IF NOT EXISTS district_turnout(
 	congress_nbr INTEGER NOT NULL,
 	turnout INTEGER NOT NULL,
 	
-	UNIQUE (district_nbr, state, congress_nbr),
-	CONSTRAINT district_nbr_is_pos CHECK (district_nbr > 0),
+	CONSTRAINT district_nbr_is_nonneg CHECK (district_nbr >= 0),
 	CONSTRAINT turnout_is_nonneg CHECK (district_nbr >= 0)
 );
 
@@ -96,4 +101,22 @@ func Connect() (*sql.DB, error) {
 	}
 
 	return db, nil
+}
+
+func ErrIsDbLocked(err error) bool {
+	return err != nil && strings.Index(err.Error(), "database is locked") != -1
+}
+
+func StartTx(ctx context.Context, db *sql.DB) (*sql.Tx, error) {
+	var tx *sql.Tx
+	var err error
+	stopTrying := time.Now().Add(5 * time.Minute)
+	for time.Now().Before(stopTrying) {
+		tx, err = db.BeginTx(ctx, nil)
+		if err == nil {
+			return tx, nil
+		}
+		time.Sleep(3 * time.Second)
+	}
+	return nil, err
 }

@@ -11,7 +11,7 @@ STATE_TILES = $(patsubst %,${OUTPUT}/%-states.mbtiles,${CONGRESSES})
 
 ${TMP}/${STATE_DATA_FILE}:
 	mkdir -p "${TMP}"
-	curl --fail-early --fail "${STATE_DATA_URL}" > "$@"
+	curl --fail-early --fail "${STATE_DATA_URL}" > "$@" || rm "$@"
 
 ${TMP}/states.geojson: ${TMP}/${STATE_DATA_FILE}
 	unzip -d "${TMP}" -o "$<"
@@ -21,14 +21,17 @@ define STATE_RECIPES
 
 $${TMP}/${congress}-states.geojson: $${TMP}/states.geojson $${EXTRACT_STATES_FOR_YEAR}
 	YEAR=$$$$(($$$$($${CONGRESS_START_YEAR} ${congress}) - 1)) && \
-	"$${EXTRACT_STATES_FOR_YEAR}" "$$<" "$$$${YEAR}" > "$$@"
+	"$${EXTRACT_STATES_FOR_YEAR}" "$$<" "$$$${YEAR}" > "$$@".tmp
+	mv "$$@".tmp "$$@"
 
 $${TMP}/${congress}-proc-states.geojson: $${TMP}/${congress}-states.geojson $${ADD_LABELS} $${MARK_IRREG}
-	"$${ADD_LABELS}" < "$$<" | "$${MARK_IRREG}" "${congress}" > "$$@"
+	"$${ADD_LABELS}" < "$$<" | "$${MARK_IRREG}" "${congress}" > "$$@".tmp
+	mv "$$@".tmp "$$@"
 
 $${OUTPUT}/${congress}-states.mbtiles: $${TMP}/${congress}-proc-states.geojson
 	mkdir -p "$${OUTPUT}"
-	tippecanoe -o "$$@" ${TIPPECANOE_OPTS} -l states -n "states ${congress}" "$$<"
+	tippecanoe -o "$$@".tmp ${TIPPECANOE_OPTS} -l states -n "states ${congress}" "$$<"
+	mv "$$@".tmp "$$@"
 
 endef
 

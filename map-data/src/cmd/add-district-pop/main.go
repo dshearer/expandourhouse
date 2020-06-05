@@ -7,9 +7,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
 	"os"
+	"time"
 
+	"expandourhouse.com/mapdata/housedb"
 	"expandourhouse.com/mapdata/utils"
 	"github.com/paulmach/orb/geojson"
 	"github.com/vladimirvivien/automi/collectors"
@@ -54,9 +57,17 @@ func main() {
 	}
 
 	// connect to DB
-	db, err := GetData(context.Background())
-	if err != nil {
-		log.Fatal(err)
+	var db *sql.DB
+	var err error
+	for {
+		db, err = GetData(context.Background())
+		if err == nil {
+			break
+		}
+		if !housedb.ErrIsDbLocked(err) {
+			log.Fatal(err)
+		}
+		time.Sleep(3 * time.Second)
 	}
 
 	strm := stream.New(utils.NewFeatureReader(os.Stdin))
@@ -78,6 +89,7 @@ func main() {
 			if turnout == nil {
 				return f
 			}
+			os.Stderr.WriteString(fmt.Sprintf("Got turnout for %v-%v (%v)\n", state, district, congressNbr))
 			f.Properties["turnout"] = *turnout
 			return f
 		}).

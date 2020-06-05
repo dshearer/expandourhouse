@@ -1,7 +1,7 @@
 GO_LIB_SOURCES := \
 	$(wildcard src/bulkInserter/*.go) \
 	$(wildcard src/congresses/*.go) \
-	$(wildcard src/districtDb/*.go) \
+	$(wildcard src/housedb/*.go) \
 	$(wildcard src/states/*.go) \
 	$(wildcard src/stylemetadata/*.go) \
 	$(wildcard src/utils/*.go) \

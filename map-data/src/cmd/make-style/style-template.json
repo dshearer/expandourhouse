@@ -2514,186 +2514,6 @@
             }
         },
         {
-            "id": "admin-1-boundary-bg",
-            "type": "line",
-            "metadata": {"mapbox:group": "1444934295202.7542"},
-            "source": "composite",
-            "source-layer": "states",
-            "filter": [
-                "all",
-                [
-                  "match",
-                  ["get", "group"],
-                  ["boundary"],
-                  true,
-                  false
-                ]
-              ],
-            "layout": {"line-join": "bevel"},
-            "paint": {
-                "line-blur": ["interpolate", ["linear"], ["zoom"], 3, 0, 8, 3],
-                "line-width": [
-                    "interpolate",
-                    ["linear"],
-                    ["zoom"],
-                    7,
-                    3.75,
-                    12,
-                    5.5
-                ],
-                "line-opacity": [
-                    "interpolate",
-                    ["linear"],
-                    ["zoom"],
-                    7,
-                    0,
-                    8,
-                    0.75
-                ],
-                "line-dasharray": [1, 0],
-                "line-translate": [0, 0],
-                "line-color": "hsl(0, 0%, 84%)"
-            }
-        },
-        {
-            "id": "admin-0-boundary-bg",
-            "type": "line",
-            "metadata": {"mapbox:group": "1444934295202.7542"},
-            "source": "composite",
-            "source-layer": "admin",
-            "minzoom": 1,
-            "filter": [
-                "all",
-                ["==", ["get", "admin_level"], 0],
-                ["==", ["get", "maritime"], "false"],
-                ["match", ["get", "worldview"], ["all", "US"], true, false]
-            ],
-            "layout": {},
-            "paint": {
-                "line-width": [
-                    "interpolate",
-                    ["linear"],
-                    ["zoom"],
-                    3,
-                    3.5,
-                    10,
-                    8
-                ],
-                "line-color": "hsl(0, 0%, 84%)",
-                "line-opacity": [
-                    "interpolate",
-                    ["linear"],
-                    ["zoom"],
-                    3,
-                    0,
-                    4,
-                    0.5
-                ],
-                "line-translate": [0, 0],
-                "line-blur": ["interpolate", ["linear"], ["zoom"], 3, 0, 10, 2]
-            }
-        },
-        {
-            "id": "admin-1-boundary",
-            "type": "line",
-            "metadata": {"mapbox:group": "1444934295202.7542"},
-            "source": "composite",
-            "source-layer": "states",
-            "filter": [
-                "all",
-                [
-                  "match",
-                  ["get", "group"],
-                  ["boundary"],
-                  true,
-                  false
-                ]
-              ],
-            "layout": {"line-join": "round", "line-cap": "round"},
-            "paint": {
-                "line-dasharray": [
-                    "step",
-                    ["zoom"],
-                    ["literal", [2, 0]],
-                    7,
-                    ["literal", [2, 2, 6, 2]]
-                ],
-                "line-width": 2,
-                "line-opacity": [
-                    "interpolate",
-                    ["linear"],
-                    ["zoom"],
-                    2,
-                    0,
-                    3,
-                    1
-                ],
-                "line-color": [
-                    "interpolate",
-                    ["linear"],
-                    ["zoom"],
-                    3,
-                    "hsl(0, 0%, 80%)",
-                    7,
-                    "hsl(0, 0%, 70%)"
-                ]
-            }
-        },
-        {
-            "id": "district-boundary",
-            "type": "line",
-            "metadata": {"mapbox:group": "1444934295202.7542"},
-            "source": "composite",
-            "source-layer": "districts",
-            "filter": [
-                "all",
-                [
-                  "match",
-                  ["get", "group"],
-                  ["boundary"],
-                  true,
-                  false
-                ]
-              ],
-            "layout": {"line-join": "round", "line-cap": "round"},
-            "paint": {
-                "line-dasharray": [
-                    "step",
-                    ["zoom"],
-                    ["literal", [2, 0]],
-                    7,
-                    ["literal", [2, 2, 6, 2]]
-                ],
-                "line-width": [
-                    "interpolate",
-                    ["linear"],
-                    ["zoom"],
-                    7,
-                    0.75,
-                    12,
-                    1.5
-                ],
-                "line-opacity": [
-                    "interpolate",
-                    ["linear"],
-                    ["zoom"],
-                    2,
-                    0,
-                    3,
-                    1
-                ],
-                "line-color": [
-                    "interpolate",
-                    ["linear"],
-                    ["zoom"],
-                    3,
-                    "hsl(0, 0%, 80%)",
-                    7,
-                    "hsl(0, 0%, 70%)"
-                ]
-            }
-        },
-        {
             "id": "irreg-district-bg",
             "type": "fill",
             "metadata": {"mapbox:group": "1444934295202.7542"},
@@ -2742,9 +2562,55 @@
                 ]
               ],
             "paint": {
-                "fill-color": "hsl(246, 42%, 75%)",
-                "fill-opacity": 0.5,
+                "fill-color": "hsl(0, 0%, 100%)",
+                "fill-opacity": 0.8,
                 "fill-antialias": false
+            }
+        },
+        {
+            "id": "district-boundary",
+            "type": "line",
+            "metadata": {"mapbox:group": "1444934295202.7542"},
+            "source": "composite",
+            "source-layer": "districts",
+            "filter": [
+                "all",
+                [
+                  "match",
+                  ["get", "group"],
+                  ["boundary"],
+                  true,
+                  false
+                ]
+              ],
+            "layout": {"line-join": "round", "line-cap": "round"},
+            "paint": {
+                "line-dasharray": [
+                    "step",
+                    ["zoom"],
+                    ["literal", [2, 0]],
+                    7,
+                    ["literal", [2, 2, 6, 2]]
+                ],
+                "line-width": [
+                    "interpolate",
+                    ["linear"],
+                    ["zoom"],
+                    7,
+                    0.75,
+                    12,
+                    1.5
+                ],
+                "line-opacity": ["step", ["zoom"], 0, 5, 1],
+                "line-color": [
+                    "interpolate",
+                    ["linear"],
+                    ["zoom"],
+                    3,
+                    "hsl(0, 0%, 80%)",
+                    7,
+                    "hsl(0, 0%, 70%)"
+                ]
             }
         },
         {
@@ -2754,7 +2620,7 @@
             "source": "composite",
             "source-layer": "states",
             "minzoom": 3,
-            "maxzoom": 9,
+            "maxzoom": 5,
             "filter": [
                 "all",
                 [
@@ -2777,13 +2643,7 @@
                 ],
                 "text-transform": "uppercase",
                 "text-font": ["DIN Offc Pro Bold", "Arial Unicode MS Bold"],
-                "text-field": [
-                    "step",
-                    ["zoom"],
-                    ["get", "titleShort"],
-                    5,
-                    ["get", "titleLong"]
-                  ],
+                "text-field": ["get", "titleShort"],
                 "text-letter-spacing": 0.15,
                 "text-max-width": 6
             },
@@ -2794,7 +2654,7 @@
             }
         },
         {
-            "id": "district-label",
+            "id": "district-without-turnout-label",
             "type": "symbol",
             "metadata": {"mapbox:group": "1444934295202.7542"},
             "source": "composite",
@@ -2826,7 +2686,7 @@
                 "text-field": [
                     "step",
                     ["zoom"],
-                    ["get", "titleShort"],
+                    "",
                     5,
                     ["get", "titleLong"]
                   ],
@@ -2837,6 +2697,91 @@
                 "text-halo-width": 1,
                 "text-halo-color": "hsl(0, 0%, 100%)",
                 "text-color": "hsl(0, 0%, 66%)"
+            }
+        },
+        {
+            "id": "district-with-turnout-label",
+            "type": "symbol",
+            "metadata": {"mapbox:group": "1444934295202.7542"},
+            "source": "composite",
+            "source-layer": "districts",
+            "minzoom": 3,
+            "maxzoom": 9,
+            "filter": [
+                "all",
+                [
+                  "match",
+                  ["get", "group"],
+                  ["label"],
+                  true,
+                  false
+                ],
+                ["has", "turnout"]
+              ],
+            "layout": {
+                "text-size": [
+                    "interpolate",
+                    ["cubic-bezier", 0.85, 0.7, 0.65, 1],
+                    ["zoom"],
+                    4,
+                    ["step", ["get", "symbolrank"], 10, 6, 9.5, 7, 9],
+                    9,
+                    ["step", ["get", "symbolrank"], 24, 6, 18, 7, 14]
+                ],
+                "text-transform": "none",
+                "text-font": ["DIN Offc Pro Regular", "Arial Unicode MS Regular"],
+                "text-field": [
+                    "step",
+                    ["zoom"],
+                    "",
+                    5,
+                    ["get", "titleLong"]
+                  ],
+                "text-letter-spacing": 0.15,
+                "text-max-width": 6
+            },
+            "paint": {
+                "text-halo-width": 1,
+                "text-halo-color": "hsl(0, 0%, 100%)",
+                "text-color": "hsl(0, 0%, 29%)"
+            }
+        },
+        {
+            "id": "admin-0-boundary-bg",
+            "type": "line",
+            "metadata": {"mapbox:group": "1444934295202.7542"},
+            "source": "composite",
+            "source-layer": "admin",
+            "minzoom": 1,
+            "filter": [
+                "all",
+                ["==", ["get", "admin_level"], 0],
+                ["==", ["get", "maritime"], "false"],
+                ["match", ["get", "worldview"], ["all", "US"], true, false]
+            ],
+            "layout": {},
+            "paint": {
+                "line-width": [
+                    "interpolate",
+                    ["linear"],
+                    ["zoom"],
+                    3,
+                    3.5,
+                    10,
+                    8
+                ],
+                "line-color": "hsl(0, 0%, 84%)",
+                "line-opacity": [
+                    "interpolate",
+                    ["linear"],
+                    ["zoom"],
+                    3,
+                    0,
+                    4,
+                    0.5
+                ],
+                "line-translate": [0, 0],
+                "line-blur": ["interpolate", ["linear"], ["zoom"], 3, 0, 10, 2]
             }
         },
         {
@@ -2864,6 +2809,94 @@
                     0.5,
                     10,
                     2
+                ]
+            }
+        },
+        {
+            "id": "admin-1-boundary-bg",
+            "type": "line",
+            "metadata": {"mapbox:group": "1444934295202.7542"},
+            "source": "composite",
+            "source-layer": "states",
+            "filter": [
+                "all",
+                [
+                  "match",
+                  ["get", "group"],
+                  ["boundary"],
+                  true,
+                  false
+                ]
+              ],
+            "layout": {"line-join": "bevel"},
+            "paint": {
+                "line-blur": ["interpolate", ["linear"], ["zoom"], 3, 0, 8, 3],
+                "line-width": [
+                    "interpolate",
+                    ["linear"],
+                    ["zoom"],
+                    7,
+                    3.75,
+                    12,
+                    5.5
+                ],
+                "line-opacity": [
+                    "interpolate",
+                    ["linear"],
+                    ["zoom"],
+                    7,
+                    0,
+                    8,
+                    0.75
+                ],
+                "line-dasharray": [1, 0],
+                "line-translate": [0, 0],
+                "line-color": "hsl(0, 0%, 84%)"
+            }
+        },
+        {
+            "id": "admin-1-boundary",
+            "type": "line",
+            "metadata": {"mapbox:group": "1444934295202.7542"},
+            "source": "composite",
+            "source-layer": "states",
+            "filter": [
+                "all",
+                [
+                  "match",
+                  ["get", "group"],
+                  ["boundary"],
+                  true,
+                  false
+                ]
+              ],
+            "layout": {"line-join": "round", "line-cap": "round"},
+            "paint": {
+                "line-dasharray": [
+                    "step",
+                    ["zoom"],
+                    ["literal", [2, 0]],
+                    7,
+                    ["literal", [2, 2, 6, 2]]
+                ],
+                "line-width": 2,
+                "line-opacity": [
+                    "interpolate",
+                    ["linear"],
+                    ["zoom"],
+                    2,
+                    0,
+                    3,
+                    1
+                ],
+                "line-color": [
+                    "interpolate",
+                    ["linear"],
+                    ["zoom"],
+                    3,
+                    "hsl(0, 0%, 80%)",
+                    7,
+                    "hsl(0, 0%, 70%)"
                 ]
             }
         },
