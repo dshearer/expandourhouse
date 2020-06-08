@@ -8,9 +8,10 @@ STYLES = $(patsubst %,${OUTPUT}/%-style.json,${CONGRESSES})
 
 define STYLE_RECIPES
 
-$${OUTPUT}/${congress}-style.json: $${PROGRAMS}
-	mkdir -p "$${OUTPUT}"
-	"$${MAKE_STYLE}" "${congress}" "$${MAPBOX_USER}" > "$$@"
+$${OUTPUT}/${congress}-style.json: $${MAKE_STYLE}
+	@echo MAKE-STYLE ${congress}-style.json
+	@mkdir -p "$${OUTPUT}"
+	@"$${MAKE_STYLE}" "${congress}" "$${MAPBOX_USER}" > "$$@"
 
 endef
 

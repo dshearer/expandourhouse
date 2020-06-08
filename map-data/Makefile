@@ -3,8 +3,8 @@
 #
 # Use these to control for which congresses we will generate map data.
 ###############################################################################
-FIRST_CONGRESS = 11
-LAST_CONGRESS = 20
+FIRST_CONGRESS = 100
+LAST_CONGRESS = 100
 
 # derived params
 CONGRESSES = $(shell seq -f '%03g' ${FIRST_CONGRESS} ${LAST_CONGRESS})
@@ -38,8 +38,10 @@ PROGRAMS = \
 	${REDUCE_PRECISION} \
 	${UPLOAD}
 
-TIPPECANOE_OPTS = --force -z 10 -Z 0 --no-line-simplification -b0 -r1 -pk -pf
-#--read-parallel
+TIPPECANOE_OPTS = --force -z 10 -Z 0 --read-parallel --no-line-simplification -r1 -pk -pf
+# -b0 causes lines at tile borders
+
+# -b0 -pk -pf -> lines and missing dots
 
 .PHONY: default
 default: build
