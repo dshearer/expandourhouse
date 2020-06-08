@@ -18,6 +18,8 @@ func makeValuePlaceholder(startNbr int, endNbr int) string {
 }
 
 type Inserter struct {
+	FlushPeriod int
+
 	ctx      context.Context
 	tx       *sql.Tx
 	table    string
@@ -30,6 +32,7 @@ func Make(ctx context.Context, tx *sql.Tx, table string,
 	cols []string) Inserter {
 
 	var inserter Inserter
+	inserter.FlushPeriod = 100
 	inserter.ctx = ctx
 	inserter.tx = tx
 	inserter.table = table
@@ -84,7 +87,7 @@ func (self *Inserter) Insert(values []interface{}) error {
 	}
 
 	// flush (maybe)
-	if len(self.buffer)/self.numCols > 100 {
+	if len(self.buffer)/self.numCols > self.FlushPeriod {
 		if err := self.Flush(); err != nil {
 			return err
 		}

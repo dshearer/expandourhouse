@@ -2,13 +2,14 @@ package main
 
 import (
 	"encoding/base64"
+	"fmt"
 	"io"
 	"log"
 	"os"
 )
 
 const gImports = `
-package main
+package turnoutdb
 
 import (
 	"encoding/base64"
@@ -24,31 +25,16 @@ func OpenTuftsData() io.ReadSeeker {
 	return bytes.NewReader(data)
 }
 
+func OpenHarvardData() io.ReadSeeker {
+	data, _ := base64.StdEncoding.DecodeString(gHarvardDataBase64)
+	return bytes.NewReader(data)
+}
+
 `
 
-func main() {
-
-	// open data file
-	in, err := os.Open("tufts-all-votes-congress-3.tsv")
-	if err != nil {
-		log.Panic(err)
-	}
-	defer in.Close()
-
-	// open output file
-	out, err := os.Create("data.go")
-	if err != nil {
-		log.Panic(err)
-	}
-	defer out.Close()
-
-	// write imports
-	if _, err := out.WriteString(gImports); err != nil {
-		log.Panic(err)
-	}
-
+func writeDataVar(varName string, in io.Reader, out *os.File) {
 	// write variable decl
-	if _, err := out.WriteString("const gTuftsDataBase64 = `"); err != nil {
+	if _, err := out.WriteString(fmt.Sprintf("const %v = `", varName)); err != nil {
 		log.Panic(err)
 	}
 
@@ -65,9 +51,40 @@ func main() {
 	if _, err := out.WriteString("`\n"); err != nil {
 		log.Panic(err)
 	}
+}
+
+func main() {
+
+	// open data files
+	tuftsIn, err := os.Open("tufts-all-votes-congress-3.tsv")
+	if err != nil {
+		panic(err)
+	}
+	defer tuftsIn.Close()
+	harvardIn, err := os.Open("harvard-1976-2018-house2.csv")
+	if err != nil {
+		panic(err)
+	}
+	defer harvardIn.Close()
+
+	// open output file
+	out, err := os.Create("data.go")
+	if err != nil {
+		panic(err)
+	}
+	defer out.Close()
+
+	// write imports
+	if _, err := out.WriteString(gImports); err != nil {
+		panic(err)
+	}
+
+	// write variables
+	writeDataVar("gTuftsDataBase64", tuftsIn, out)
+	writeDataVar("gHarvardDataBase64", harvardIn, out)
 
 	// finish decode func
 	if _, err := out.WriteString(gDecodeFunc); err != nil {
-		log.Panic(err)
+		panic(err)
 	}
 }

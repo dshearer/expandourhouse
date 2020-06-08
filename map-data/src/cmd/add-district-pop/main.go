@@ -1,10 +1,7 @@
-//go:generate go run scripts/includeData.go
-
 package main
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -12,42 +9,16 @@ import (
 	"os"
 	"time"
 
-	"expandourhouse.com/mapdata/housedb"
+	"expandourhouse.com/mapdata/cmd/add-district-pop/turnoutdb"
 	"expandourhouse.com/mapdata/utils"
 	"github.com/paulmach/orb/geojson"
 	"github.com/vladimirvivien/automi/collectors"
 	"github.com/vladimirvivien/automi/stream"
 )
 
-func getTurnout(db *sql.DB, congressNbr int, state string, districtNbr int) (*int, error) {
-	var err error
-	var rows *sql.Rows
-	var turnout int
-	var turnoutP = &turnout
-
-	sql := "SELECT turnout FROM district_turnout WHERE state = $1 AND congress_nbr = $2 AND district_nbr = $3"
-	rows, err = db.Query(sql, state, congressNbr, districtNbr)
-	if err != nil {
-		goto done
-	}
-	if !rows.Next() {
-		turnoutP = nil
-		goto done
-	}
-	if err = rows.Scan(&turnout); err != nil {
-		turnoutP = nil
-		goto done
-	}
-
-done:
-	if rows != nil {
-		rows.Close()
-	}
-	return turnoutP, err
-}
-
 func main() {
 	log.SetOutput(os.Stderr)
+	ctx := context.Background()
 
 	// parse args
 	flag.Parse()
@@ -57,18 +28,16 @@ func main() {
 	}
 
 	// connect to DB
-	var db *sql.DB
-	var err error
-	for {
-		db, err = GetData(context.Background())
-		if err == nil {
-			break
+again:
+	db, err := turnoutdb.NewTurnoutDb(ctx)
+	if err != nil {
+		if err == turnoutdb.ErrTryAgain {
+			time.Sleep(3 * time.Second)
+			goto again
 		}
-		if !housedb.ErrIsDbLocked(err) {
-			log.Fatal(err)
-		}
-		time.Sleep(3 * time.Second)
+		log.Fatal(err)
 	}
+	defer db.Close()
 
 	strm := stream.New(utils.NewFeatureReader(os.Stdin))
 	strm.
@@ -82,7 +51,7 @@ func main() {
 			district := int(f.Properties["district"].(float64))
 
 			// get turnout
-			turnout, err := getTurnout(db, congressNbr, state, district)
+			turnout, err := db.GetTurnout(ctx, congressNbr, state, district)
 			if err != nil {
 				log.Fatal(err)
 			}
