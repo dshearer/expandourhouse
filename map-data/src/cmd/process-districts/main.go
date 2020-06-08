@@ -14,17 +14,19 @@ import (
 	"github.com/vladimirvivien/automi/stream"
 )
 
-func cleanUpProps(f *geojson.Feature) *geojson.Feature {
+func cleanUpProps(f *geojson.Feature, congress int) *geojson.Feature {
+	/*
+		The ID contains the number of the first Congress that had
+		this district, which is not necessarily the Congress that
+		we are currently interested in.
+	*/
+
 	// parse ID
 	id, ok := f.Properties["ID"].(string)
 	if !ok {
 		log.Panic("Feature doesn't have ID")
 	}
 	stateFips, err := strconv.Atoi(id[0:3])
-	if err != nil {
-		log.Panic(err)
-	}
-	congress, err := strconv.Atoi(id[3:6])
 	if err != nil {
 		log.Panic(err)
 	}
@@ -66,14 +68,21 @@ func main() {
 	log.SetOutput(os.Stderr)
 
 	flag.Parse()
-	if flag.NArg() != 0 {
-		os.Stderr.WriteString("usage: process-districts\n")
+	if flag.NArg() != 1 {
+		os.Stderr.WriteString("usage: process-districts CONGRESS\n")
 		os.Exit(1)
+	}
+	tmp := flag.Arg(0)
+	congress, err := strconv.Atoi(tmp)
+	if err != nil {
+		panic(err)
 	}
 
 	strm := stream.New(newGeoJSONReader(os.Stdin))
 	strm.
-		Map(cleanUpProps).
+		Map(func(f *geojson.Feature) *geojson.Feature {
+			return cleanUpProps(f, congress)
+		}).
 		Filter(func(f *geojson.Feature) bool {
 			// filter out invalid districts (e.g., -1 for Indian lands)
 			return f.Properties["district"].(int) >= 0
