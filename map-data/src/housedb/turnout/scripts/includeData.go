@@ -9,7 +9,7 @@ import (
 )
 
 const gImports = `
-package turnoutdb
+package turnout
 
 import (
 	"encoding/base64"
@@ -68,7 +68,7 @@ func main() {
 	defer harvardIn.Close()
 
 	// open output file
-	out, err := os.Create("data.go")
+	out, err := os.Create("turnoutData.go")
 	if err != nil {
 		panic(err)
 	}

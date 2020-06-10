@@ -7,9 +7,8 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
 
-	"expandourhouse.com/mapdata/cmd/add-district-pop/turnoutdb"
+	"expandourhouse.com/mapdata/housedb"
 	"expandourhouse.com/mapdata/utils"
 	"github.com/paulmach/orb/geojson"
 	"github.com/vladimirvivien/automi/collectors"
@@ -28,15 +27,7 @@ func main() {
 	}
 
 	// connect to DB
-again:
-	db, err := turnoutdb.NewTurnoutDb(ctx)
-	if err != nil {
-		if err == turnoutdb.ErrTryAgain {
-			time.Sleep(3 * time.Second)
-			goto again
-		}
-		log.Fatal(err)
-	}
+	db := housedb.Connect(context.Background())
 	defer db.Close()
 
 	strm := stream.New(utils.NewFeatureReader(os.Stdin))
@@ -51,10 +42,7 @@ again:
 			district := int(f.Properties["district"].(float64))
 
 			// get turnout
-			turnout, err := db.GetTurnout(ctx, congressNbr, state, district)
-			if err != nil {
-				log.Fatal(err)
-			}
+			turnout := db.GetTurnout(ctx, congressNbr, state, district)
 			if turnout == nil {
 				return f
 			}

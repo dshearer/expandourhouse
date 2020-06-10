@@ -2,14 +2,11 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"flag"
-	"fmt"
 	"log"
 	"os"
 	"strconv"
-	"time"
 
 	"expandourhouse.com/mapdata/housedb"
 	"expandourhouse.com/mapdata/utils"
@@ -20,48 +17,9 @@ import (
 
 const gUsage = "usage: mark-irregular-states CONGRESS_NBR\n"
 
-type irregType struct {
-	name  string
-	table string
-}
-
-var gIrregTypes = []irregType{
-	irregType{
-		name:  "Both at-large and on-at-large districts",
-		table: "state_with_atlarge_and_nonatlarge_districts",
-	},
-	irregType{
-		name:  "Districts have multiple reps",
-		table: "state_with_overlapping_terms",
-	},
-}
-
-func stateIsIrregular(db *sql.DB, state string, congressNbr int, it irregType) (bool, error) {
-	var isIrregular bool
-	var err error
-	var rows *sql.Rows
-	var nbr int
-
-	sql := fmt.Sprintf("SELECT COUNT(*) FROM %v WHERE state = $1 AND congress_nbr = $2", it.table)
-	rows, err = db.Query(sql, state, congressNbr)
-	if err != nil {
-		goto done
-	}
-	rows.Next()
-	if err = rows.Scan(&nbr); err != nil {
-		goto done
-	}
-	isIrregular = nbr > 0
-
-done:
-	if rows != nil {
-		rows.Close()
-	}
-	return isIrregular, err
-}
-
 func main() {
 	log.SetOutput(os.Stderr)
+	ctx := context.Background()
 
 	// parse args
 	flag.Parse()
@@ -76,17 +34,8 @@ func main() {
 	}
 
 	// connect to DB
-	var db *sql.DB
-	for {
-		db, err = GetData(context.Background())
-		if err == nil {
-			break
-		}
-		if !housedb.ErrIsDbLocked(err) {
-			log.Fatal(err)
-		}
-		time.Sleep(3 * time.Second)
-	}
+	db := housedb.Connect(ctx)
+	defer db.Close()
 
 	// find irregular states
 	strm := stream.New(utils.NewFeatureReader(os.Stdin))
@@ -102,21 +51,7 @@ func main() {
 				return f
 			}
 
-			var irregHow []string
-			for _, ir := range gIrregTypes {
-				irreg, err := stateIsIrregular(
-					db,
-					stateAbbr,
-					congressNbr,
-					ir)
-				if err != nil {
-					log.Fatal(err)
-				}
-				if irreg {
-					irregHow = append(irregHow, ir.name)
-				}
-			}
-
+			irregHow := db.StateIrregularities(ctx, stateAbbr, congressNbr)
 			f.Properties["irregular"] = len(irregHow) > 0
 			if len(irregHow) > 0 {
 				f.Properties["irregularHow"] = irregHow

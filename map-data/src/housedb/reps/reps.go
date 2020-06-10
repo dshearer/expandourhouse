@@ -1,4 +1,4 @@
-package main
+package reps
 
 import (
 	"context"
@@ -8,13 +8,13 @@ import (
 
 	"expandourhouse.com/mapdata/bulkInserter"
 	"expandourhouse.com/mapdata/congresses"
-	"expandourhouse.com/mapdata/housedb"
+	"expandourhouse.com/mapdata/housedb/sourceinst"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
 
-const gSourceName = "legislators-historical"
-const gSourceUrl = "https://github.com/unitedstates/congress-legislators/raw/master/legislators-historical.yaml"
+const gRepSourceName = "legislators-historical"
+const gRepSourceUrl = "https://github.com/unitedstates/congress-legislators/raw/master/legislators-historical.yaml"
 
 func parseDate(dateStr string) (time.Time, error) {
 	return time.Parse("2006-01-02", dateStr)
@@ -87,14 +87,7 @@ func handleHistLegEntry(ctx context.Context, db *sql.Tx,
 	return nil
 }
 
-func GetData(ctx context.Context) (*sql.DB, error) {
-	var err error
-	var db *sql.DB
-	var tx *sql.Tx
-	var sourceInst *housedb.SourceInst
-	var inserter bulkInserter.Inserter
-	var data []map[interface{}]interface{}
-	var decoder *yaml.Decoder
+func addRepData(ctx context.Context, tx *sql.Tx, sourceInst *sourceinst.SourceInst) error {
 	cols := []string{
 		"bioguide",
 		"district_nbr",
@@ -105,84 +98,83 @@ func GetData(ctx context.Context) (*sql.DB, error) {
 		"end_date",
 	}
 
-	// connect to DB
-	db, err = housedb.Connect()
-	if err != nil {
-		goto done
-	}
-	tx, err = housedb.StartTx(ctx, db)
-	if err != nil {
-		goto done
-	}
-
-	// get source
-	sourceInst, err = housedb.FetchHttpSourceIfChanged(
-		ctx,
-		gSourceName,
-		gSourceUrl,
-		tx,
-	)
-	if err != nil {
-		goto done
-	}
-
-	if sourceInst == nil {
-		log.Printf("No new data for %v\n", gSourceName)
-		tx.Rollback()
-		goto done
-	}
-	log.Printf("New data for %v\n", gSourceName)
-	defer sourceInst.Data.Close()
-
 	// parse as YAML
-	decoder = yaml.NewDecoder(sourceInst.Data)
-	err = decoder.Decode(&data)
-	if err != nil {
-		goto done
+	decoder := yaml.NewDecoder(sourceInst.Data)
+	var data []map[interface{}]interface{}
+	if err := decoder.Decode(&data); err != nil {
+		return err
 	}
 
 	// empty DB
-	_, err = tx.ExecContext(ctx, "DELETE FROM representative_term")
+	_, err := tx.ExecContext(ctx, "DELETE FROM representative_term")
 	if err != nil {
 		err = errors.Wrap(err, "Failed to delete")
-		goto done
+		return err
 	}
 
 	// add entries to DB
 	log.Println("Adding historial legislators")
-	inserter = bulkInserter.Make(ctx, tx, "representative_term", cols)
+	inserter := bulkInserter.Make(ctx, tx, "representative_term", cols)
 	for _, entry := range data {
 		err = handleHistLegEntry(ctx, tx, entry, &inserter)
 		if err != nil {
-			goto done
+			return err
 		}
 	}
 	if err = inserter.Flush(); err != nil {
 		err = errors.Wrap(err, "Failed to flush")
-		goto done
+		return err
 	}
 
 	// mark source as processed
 	if err = sourceInst.MakeRecord(); err != nil {
 		err = errors.Wrap(err, "Failed to make source record")
-		goto done
+		return err
+	}
+	return nil
+}
+
+func AddRepData(ctx context.Context, db *sql.DB) error {
+	var tx *sql.Tx
+	var err error
+
+	defer func() {
+		if err != nil {
+			if tx != nil {
+				tx.Rollback()
+			}
+		}
+	}()
+
+	// start transaction
+	tx, err = db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	// get source
+	sourceInst, err := sourceinst.FetchHttpSourceIfChanged(
+		ctx,
+		gRepSourceName,
+		gRepSourceUrl,
+		tx,
+	)
+	if err != nil {
+		return err
+	}
+
+	if sourceInst == nil {
+		log.Printf("No new data for %v\n", gRepSourceName)
+	} else {
+		log.Printf("New data for %v\n", gRepSourceName)
+		addRepData(ctx, tx, sourceInst)
+		defer sourceInst.Data.Close()
 	}
 
 	// commit DB transaction
 	if err = tx.Commit(); err != nil {
-		err = errors.Wrap(err, "Failed to commit")
-		goto done
+		return err
 	}
 
-done:
-	if err != nil {
-		if tx != nil {
-			tx.Rollback()
-		}
-		if db != nil {
-			db.Close()
-		}
-		return nil, err
-	}
-	return db, nil
+	return err
 }

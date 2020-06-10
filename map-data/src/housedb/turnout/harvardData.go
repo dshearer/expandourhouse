@@ -1,4 +1,4 @@
-package turnoutdb
+package turnout
 
 import (
 	"context"
@@ -7,10 +7,10 @@ import (
 
 	"expandourhouse.com/mapdata/bulkInserter"
 	"expandourhouse.com/mapdata/congresses"
-	"expandourhouse.com/mapdata/housedb"
+	"expandourhouse.com/mapdata/housedb/sourceinst"
 )
 
-func addHarvardData(ctx context.Context, tx *sql.Tx, source *housedb.SourceInst) error {
+func addHarvardData(ctx context.Context, tx *sql.Tx, source *sourceinst.SourceInst) error {
 	// make reader
 	reader := newTurnoutReader(source, ',')
 
@@ -51,7 +51,7 @@ func addHarvardData(ctx context.Context, tx *sql.Tx, source *housedb.SourceInst)
 			continue
 		}
 
-		// insert total votes into housedb
+		// insert total votes into DB
 		values := []interface{}{
 			rec.GetInt("district"),
 			rec.Get("state_po"),

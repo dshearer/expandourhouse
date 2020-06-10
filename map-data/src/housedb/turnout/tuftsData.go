@@ -1,4 +1,4 @@
-package turnoutdb
+package turnout
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 
 	"expandourhouse.com/mapdata/bulkInserter"
 	"expandourhouse.com/mapdata/congresses"
-	"expandourhouse.com/mapdata/housedb"
+	"expandourhouse.com/mapdata/housedb/sourceinst"
 	"expandourhouse.com/mapdata/states"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -116,7 +116,7 @@ func (self *rawDb) Close() {
 	self.db = nil
 }
 
-func makeTuftsRawDb(ctx context.Context, source *housedb.SourceInst) (*rawDb, error) {
+func makeTuftsRawDb(ctx context.Context, source *sourceinst.SourceInst) (*rawDb, error) {
 	// make temp DB
 	tmpDbDir, err := ioutil.TempDir("", "tuftsDb*")
 	if err != nil {
@@ -304,11 +304,11 @@ func makeTuftsRawDb(ctx context.Context, source *housedb.SourceInst) (*rawDb, er
 	ny.uscongressspecial.1791
 */
 
-func addTuftsData(ctx context.Context, tx *sql.Tx, source *housedb.SourceInst) error {
+func addTuftsData(ctx context.Context, tx *sql.Tx, source *sourceinst.SourceInst) error {
 	/*
 		1. Read records from TSV file into a temporary Sqlite DB
 		2. Use the temp DB to compute turnouts
-		3. Insert turnouts into housedb
+		3. Insert turnouts into DB
 	*/
 
 	// read records into temp DB
@@ -427,7 +427,7 @@ func addTuftsData(ctx context.Context, tx *sql.Tx, source *housedb.SourceInst) e
 		}
 		res.Close()
 
-		// insert total votes into housedb
+		// insert total votes into DB
 		values := []interface{}{
 			actualDistrict,
 			state,

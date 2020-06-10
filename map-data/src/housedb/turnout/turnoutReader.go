@@ -1,4 +1,4 @@
-package turnoutdb
+package turnout
 
 import (
 	"encoding/csv"
@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"expandourhouse.com/mapdata/housedb"
+	"expandourhouse.com/mapdata/housedb/sourceinst"
 )
 
 type turnoutRec struct {
@@ -35,9 +35,10 @@ func (self *turnoutRec) GetInt(col string) int {
 type turnoutReader struct {
 	csvReader *csv.Reader
 	colToIdx  map[string]int
+	cols      []string
 }
 
-func newTurnoutReader(source *housedb.SourceInst, comma rune) *turnoutReader {
+func newTurnoutReader(source *sourceinst.SourceInst, comma rune) *turnoutReader {
 	reader := csv.NewReader(source.Data)
 	reader.Comma = comma
 	reader.ReuseRecord = true
@@ -48,6 +49,7 @@ func newTurnoutReader(source *housedb.SourceInst, comma rune) *turnoutReader {
 }
 
 func (self *turnoutReader) IndexOfCol(col string) int {
+	self.readCols()
 	idx, ok := self.colToIdx[col]
 	if !ok {
 		panic(fmt.Sprintf("Unknown column: %v", col))
@@ -56,6 +58,10 @@ func (self *turnoutReader) IndexOfCol(col string) int {
 }
 
 func (self *turnoutReader) readCols() {
+	if self.colToIdx != nil {
+		return
+	}
+
 	// get next record
 	rec, err := self.csvReader.Read()
 	if err != nil {
@@ -65,25 +71,19 @@ func (self *turnoutReader) readCols() {
 	// read cols
 	self.colToIdx = make(map[string]int)
 	for idx, col := range rec {
-		self.colToIdx[strings.TrimSpace(col)] = idx
+		col = strings.TrimSpace(col)
+		self.colToIdx[col] = idx
+		self.cols = append(self.cols, col)
 	}
 }
 
 func (self *turnoutReader) Cols() []string {
-	if self.colToIdx == nil {
-		self.readCols()
-	}
-	cols := make([]string, len(self.colToIdx))
-	for col := range self.colToIdx {
-		cols = append(cols, col)
-	}
-	return cols
+	self.readCols()
+	return self.cols
 }
 
 func (self *turnoutReader) Read() *turnoutRec {
-	if self.colToIdx == nil {
-		self.readCols()
-	}
+	self.readCols()
 
 	// get next record
 	rec, err := self.csvReader.Read()
