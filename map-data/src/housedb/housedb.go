@@ -16,7 +16,7 @@ const gSchema = `
 PRAGMA journal_mode=WAL; /* Big performance improvement */
 
 CREATE TABLE IF NOT EXISTS source(
-	name TEXT NOT NULL,
+	name TEXT NOT NULL UNIQUE,
 	url TEXT,
 	etag TEXT,
 	last_checked INTEGER NOT NULL
@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS district_turnout(
 	congress_nbr INTEGER NOT NULL,
 	turnout INTEGER NOT NULL,
 	
+	UNIQUE (district_nbr, state, congress_nbr),
 	CONSTRAINT district_nbr_is_nonneg CHECK (district_nbr >= 0),
 	CONSTRAINT turnout_is_nonneg CHECK (district_nbr >= 0)
 );

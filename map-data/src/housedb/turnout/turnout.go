@@ -67,6 +67,17 @@ func AddTurnoutData(ctx context.Context, db *sql.DB) error {
 		}
 	}
 
+	// commit DB transaction
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+
+	// make transaction
+	tx, err = db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
 	// process Havard data
 	sourceInst, err = sourceinst.FetchLocalSourceIfChanged(
 		ctx,
@@ -91,6 +102,25 @@ func AddTurnoutData(ctx context.Context, db *sql.DB) error {
 		if err = sourceInst.MakeRecord(); err != nil {
 			return err
 		}
+	}
+
+	// commit DB transaction
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+
+	// make transaction
+	tx, err = db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	// remove anomalous entries that can't be accurate
+	log.Println("Deleting anomalous turnout data")
+	q := `DELETE FROM district_turnout WHERE turnout < 10`
+	_, err = tx.ExecContext(ctx, q)
+	if err != nil {
+		return err
 	}
 
 	// commit DB transaction

@@ -55,8 +55,8 @@ var gWordsToNumbers = map[string]int{
 var gLocalityCols = []string{"Territory", "City", "County", "Town", "Township",
 	"Ward", "Parish", "Populated Place", "Hundred", "Borough"}
 
-func isEmptyValue(v string) bool {
-	return v == "" || v == "null"
+func isEmptyValue(v *string) bool {
+	return v == nil || *v == "null"
 }
 
 /*
@@ -90,16 +90,15 @@ func parseYear(s string) (int, bool) {
 	return year, true
 }
 
-func parseDistrict(s string) (int, bool) {
-	district := 0
-	if len(s) > 0 {
-		ok := false
-		district, ok = gWordsToNumbers[strings.ToLower(s)]
-		if !ok {
-			return 0, false
-		}
+func parseDistrict(s *string) int {
+	if s == nil {
+		return 0
 	}
-	return district, true
+	district, ok := gWordsToNumbers[strings.ToLower(*s)]
+	if !ok {
+		return -1
+	}
+	return district
 }
 
 type rawDb struct {
@@ -161,7 +160,6 @@ func makeTuftsRawDb(ctx context.Context, source *sourceinst.SourceInst) (*rawDb,
 	}
 	inserter := bulkInserter.Make(ctx, tx, "raw_tufts", tableCols)
 	inserter.FlushPeriod = 25
-	newRec := make([]interface{}, len(tableColsWithType)) // we reuse this
 	skippedBcOfType := 0
 	skippedBcOfLocality := 0
 	inserted := 0
@@ -172,14 +170,39 @@ func makeTuftsRawDb(ctx context.Context, source *sourceinst.SourceInst) (*rawDb,
 			break
 		}
 
-		// trim whitespace
-		for i := range rec.Data {
-			newRec[i] = rec.Data[i]
+		// make sure it's for a general election
+		if *rec.Get("Type") != "General" {
+			skippedBcOfType++
+			continue
 		}
 
-		// make sure it's for a general election
-		if rec.Get("Type") != "General" {
-			skippedBcOfType++
+		// make sure it's for the House
+		if *rec.Get("Role") != "U.S. Congressman" {
+			continue
+		}
+
+		idLower := strings.ToLower(*rec.Get("id"))
+		if strings.Contains(idLower, "district") {
+			/*
+				This is evidence that this district has a
+				weird name like "Eastern".
+			*/
+			continue
+		}
+		if strings.Contains(idLower, "congressman") ||
+			strings.Contains(idLower, "congressmen") ||
+			strings.Contains(idLower, "1strep") ||
+			strings.Contains(idLower, "2ndrep") {
+			/* This is evidence of multi-representative district */
+			continue
+		}
+		if strings.Contains(idLower, "special") {
+			/* This is evidence of some stupid special election */
+			continue
+		}
+
+		if *rec.Get("State") == "South Carolina" {
+			/* This state's data is a mess */
 			continue
 		}
 
@@ -197,39 +220,37 @@ func makeTuftsRawDb(ctx context.Context, source *sourceinst.SourceInst) (*rawDb,
 		}
 
 		// parse district
-		districtCol := reader.IndexOfCol("District")
-		district, ok := parseDistrict(rec.Data[districtCol])
-		if !ok {
-			continue
-		}
-		newRec[districtCol] = district
+		rec.Set("District", fmt.Sprintf("%v", parseDistrict(rec.Get("District"))))
 
 		// parse state
-		stateCol := reader.IndexOfCol("State")
-		state, ok := states.ByName[rec.Data[stateCol]]
+		state, ok := states.ByName[*rec.Get("State")]
 		if !ok {
 			continue
 		}
-		newRec[stateCol] = state.Usps
+		rec.Set("State", state.Usps)
 
 		// parse year
-		yearCol := reader.IndexOfCol("Date")
-		year, ok := parseYear(rec.Data[yearCol])
+		year, ok := parseYear(*rec.Get("Date"))
 		if !ok {
 			continue
 		}
-		newRec[yearCol] = year
+		rec.Set("Date", fmt.Sprintf("%v", year))
 
 		// parse vote
-		voteCol := reader.IndexOfCol("Vote")
-		vote, err := strconv.Atoi(rec.Data[voteCol])
-		if err != nil {
-			continue
+		if rec.Get("Vote") != nil {
+			vote, err := strconv.Atoi(*rec.Get("Vote"))
+			if err != nil {
+				continue
+			}
+			rec.Set("Vote", fmt.Sprintf("%v", vote))
 		}
-		newRec[voteCol] = vote
 
 		// insert into DB
-		if err := inserter.Insert(newRec); err != nil {
+		var tmp []interface{}
+		for _, v := range rec.Data {
+			tmp = append(tmp, v)
+		}
+		if err := inserter.Insert(tmp); err != nil {
 			panic(err)
 		}
 		inserted++
@@ -304,6 +325,41 @@ func makeTuftsRawDb(ctx context.Context, source *sourceinst.SourceInst) (*rawDb,
 	ny.uscongressspecial.1791
 */
 
+func getDistrictFromId(id string) int {
+	congress := "congress"
+	uscongress := "uscongress"
+	parts := strings.Split(id, ".")
+	part1 := parts[1]
+	if !strings.HasPrefix(part1, congress) &&
+		!strings.HasPrefix(part1, uscongress) {
+		return -1
+	}
+
+	if strings.HasPrefix(part1, congress) {
+		part1 = part1[len(congress):]
+	} else if strings.HasPrefix(part1, uscongress) {
+		part1 = part1[len(uscongress):]
+	}
+	var d int
+	if len(part1) == 0 {
+		var err error
+		d, err = strconv.Atoi(parts[2])
+		if err != nil {
+			return -1
+		}
+	} else {
+		var err error
+		d, err = strconv.Atoi(part1)
+		if err != nil {
+			return -1
+		}
+	}
+	if d > 100 {
+		return -1
+	}
+	return d
+}
+
 func addTuftsData(ctx context.Context, tx *sql.Tx, source *sourceinst.SourceInst) error {
 	/*
 		1. Read records from TSV file into a temporary Sqlite DB
@@ -342,41 +398,84 @@ func addTuftsData(ctx context.Context, tx *sql.Tx, source *sourceinst.SourceInst
 	inserter := bulkInserter.Make(ctx, tx, gTableName, gTableCols[:])
 
 	for _, id := range recIds {
-
 		// get unique districts
 		res, err = rawDb.db.QueryContext(ctx,
 			"SELECT DISTINCT district FROM raw_tufts WHERE id = ?", id)
 		if err != nil {
 			return err
 		}
-		var districts []int
-		hasZeroDistrict := false
+		districts := make(map[int]bool)
 		for res.Next() {
 			var d int
 			if err := res.Scan(&d); err != nil {
 				res.Close()
 				return err
 			}
-			districts = append(districts, d)
-			if d == 0 {
-				hasZeroDistrict = true
-			}
+			districts[d] = true
 		}
 		res.Close()
 
-		if (!hasZeroDistrict && len(districts) > 1) ||
-			(hasZeroDistrict && len(districts) > 2) {
+		// check for invalid district
+		if _, ok := districts[-1]; ok {
+			continue
+		}
+
+		/*
+			Sometimes even when the id is for a specific district,
+			the record set includes (duplicate) records with district == 0.
+		*/
+		if len(districts) > 1 {
+			/* What do we do with this? */
 			continue
 		}
 
 		// decide the actual district in question
-		var actualDistrict int
-		for _, d := range districts {
+		actualDistrict := 0
+		for d := range districts {
 			if d != 0 {
 				actualDistrict = d
 				break
 			}
 		}
+
+		// see if this agrees with the district in the ID
+		d := getDistrictFromId(id)
+		if d != -1 && d != actualDistrict {
+			continue
+		}
+
+		/*
+			Sometimes record sets are just bad.
+		*/
+
+		// check for multiple records for same candidate
+		q := `
+		WITH t AS (
+			SELECT COUNT(*) cnt FROM raw_tufts
+			WHERE id = ? AND District = ?
+			GROUP BY Name_ID)
+		SELECT * FROM t WHERE cnt > 1`
+		res, err = rawDb.db.QueryContext(ctx, q, id, actualDistrict)
+		if err != nil {
+			return err
+		}
+		if res.Next() {
+			res.Close()
+			continue
+		}
+		res.Close()
+
+		// check for missing vote counts
+		q = `SELECT * FROM raw_tufts WHERE id = ? AND vote IS NULL`
+		res, err = rawDb.db.QueryContext(ctx, q, id)
+		if err != nil {
+			return err
+		}
+		if res.Next() {
+			res.Close()
+			continue
+		}
+		res.Close()
 
 		// get year and state
 		res, err = rawDb.db.QueryContext(ctx,
@@ -394,6 +493,11 @@ func addTuftsData(ctx context.Context, tx *sql.Tx, source *sourceinst.SourceInst
 			return err
 		}
 		res.Close()
+
+		if year%2 == 1 {
+			/* This avoids bogus dup entries for the same congress */
+			continue
+		}
 
 		// get congress
 		/*

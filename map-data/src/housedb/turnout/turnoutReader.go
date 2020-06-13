@@ -11,25 +11,36 @@ import (
 )
 
 type turnoutRec struct {
-	Data     []string
+	Data     []*string
 	colToIdx map[string]int
 }
 
-func (self *turnoutRec) Get(col string) string {
+func (self *turnoutRec) c2i(col string) int {
 	idx, ok := self.colToIdx[col]
 	if !ok {
 		panic(fmt.Sprintf("Unknown column: %v", col))
 	}
-	return self.Data[idx]
+	return idx
 }
 
-func (self *turnoutRec) GetInt(col string) int {
+func (self *turnoutRec) Get(col string) *string {
+	return self.Data[self.c2i(col)]
+}
+
+func (self *turnoutRec) GetInt(col string) *int {
 	s := self.Get(col)
-	i, err := strconv.Atoi(s)
+	if s == nil {
+		return nil
+	}
+	i, err := strconv.Atoi(*s)
 	if err != nil {
 		panic(err)
 	}
-	return i
+	return &i
+}
+
+func (self *turnoutRec) Set(col, val string) {
+	self.Data[self.c2i(col)] = &val
 }
 
 type turnoutReader struct {
@@ -94,10 +105,15 @@ func (self *turnoutReader) Read() *turnoutRec {
 	}
 
 	var newRec turnoutRec
-	newRec.Data = make([]string, len(rec))
+	newRec.Data = make([]*string, len(rec))
 	newRec.colToIdx = self.colToIdx
 	for idx, val := range rec {
-		newRec.Data[idx] = strings.TrimSpace(val)
+		val := strings.TrimSpace(val)
+		if len(val) == 0 {
+			newRec.Data[idx] = nil
+		} else {
+			newRec.Data[idx] = &val
+		}
 	}
 	return &newRec
 }
