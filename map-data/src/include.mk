@@ -16,6 +16,7 @@ GO_LIB_SOURCES := \
 _PROGRAMS = \
 	add-district-pop \
 	add-labels \
+	compute-stats \
 	congress-start-year \
 	extract-states-for-year \
 	make-style \

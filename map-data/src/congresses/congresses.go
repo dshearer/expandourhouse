@@ -22,6 +22,15 @@ type Congress struct {
 var gCache map[int]*Congress
 
 const gFirstCongressStartYear = 1789
+const gLastCongress = 115
+
+func GetAll() []*Congress {
+	var array []*Congress
+	for i := 1; i <= gLastCongress; i++ {
+		array = append(array, Get(i))
+	}
+	return array
+}
 
 // Get returns info about the nth Congress.
 func Get(n int) *Congress {
@@ -36,10 +45,6 @@ func Get(n int) *Congress {
 	congress, ok := gCache[n]
 	if ok {
 		return congress
-	}
-
-	if n <= 0 {
-		panic("Invalid congress number")
 	}
 
 	congress = &Congress{

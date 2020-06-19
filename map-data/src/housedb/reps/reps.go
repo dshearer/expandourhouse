@@ -13,8 +13,10 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-const gRepSourceName = "legislators-historical"
-const gRepSourceUrl = "https://github.com/unitedstates/congress-legislators/raw/master/legislators-historical.yaml"
+var gRepSources = [][]string{
+	{"legislators-historical", "https://github.com/unitedstates/congress-legislators/raw/master/legislators-historical.yaml"},
+	{"legislators-current", "https://github.com/unitedstates/congress-legislators/raw/master/legislators-current.yaml"},
+}
 
 func parseDate(dateStr string) (time.Time, error) {
 	return time.Parse("2006-01-02", dateStr)
@@ -25,6 +27,11 @@ func handleHistLegEntry(ctx context.Context, db *sql.Tx,
 	inserter *bulkInserter.Inserter) error {
 
 	id := entry["id"].(map[interface{}]interface{})
+	name := entry["name"].(map[interface{}]interface{})
+	firstName := name["first"].(string)
+	middleName, hasMiddleName := name["middle"].(string)
+	lastName := name["last"].(string)
+
 	terms := entry["terms"].([]interface{})
 	for _, e := range terms {
 		term := e.(map[interface{}]interface{})
@@ -70,8 +77,15 @@ func handleHistLegEntry(ctx context.Context, db *sql.Tx,
 		}
 
 		// insert into DB
+		var middleNameP *string
+		if hasMiddleName {
+			middleNameP = &middleName
+		}
 		values := []interface{}{
 			bioguide,
+			firstName,
+			middleNameP,
+			lastName,
 			districtNbrP,
 			atLargeP,
 			state,
@@ -90,6 +104,9 @@ func handleHistLegEntry(ctx context.Context, db *sql.Tx,
 func addRepData(ctx context.Context, tx *sql.Tx, sourceInst *sourceinst.SourceInst) error {
 	cols := []string{
 		"bioguide",
+		"first_name",
+		"middle_name",
+		"last_name",
 		"district_nbr",
 		"at_large",
 		"state",
@@ -105,76 +122,91 @@ func addRepData(ctx context.Context, tx *sql.Tx, sourceInst *sourceinst.SourceIn
 		return err
 	}
 
-	// empty DB
-	_, err := tx.ExecContext(ctx, "DELETE FROM representative_term")
-	if err != nil {
-		err = errors.Wrap(err, "Failed to delete")
-		return err
-	}
-
 	// add entries to DB
-	log.Println("Adding historial legislators")
 	inserter := bulkInserter.Make(ctx, tx, "representative_term", cols)
+	inserter.FlushPeriod = 75
 	for _, entry := range data {
-		err = handleHistLegEntry(ctx, tx, entry, &inserter)
-		if err != nil {
+		if err := handleHistLegEntry(ctx, tx, entry, &inserter); err != nil {
 			return err
 		}
 	}
-	if err = inserter.Flush(); err != nil {
+	if err := inserter.Flush(); err != nil {
 		err = errors.Wrap(err, "Failed to flush")
 		return err
 	}
 
 	// mark source as processed
-	if err = sourceInst.MakeRecord(); err != nil {
+	if err := sourceInst.MakeRecord(); err != nil {
 		err = errors.Wrap(err, "Failed to make source record")
 		return err
 	}
 	return nil
 }
 
-func AddRepData(ctx context.Context, db *sql.DB) error {
+func AddRepData(ctx context.Context, db *sql.DB) (err error) {
 	var tx *sql.Tx
-	var err error
 
 	defer func() {
 		if err != nil {
 			if tx != nil {
+				log.Println("reps rolling back")
 				tx.Rollback()
 			}
 		}
 	}()
 
-	// start transaction
-	tx, err = db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
+	clearedTable := false
+
+	for _, pair := range gRepSources {
+		sourceName := pair[0]
+		sourceUrl := pair[1]
+
+		// start transaction
+		tx, err = db.BeginTx(ctx, nil)
+		if err != nil {
+			return
+		}
+
+		// get source
+		var sourceInst *sourceinst.SourceInst
+		sourceInst, err = sourceinst.FetchHttpSourceIfChanged(
+			ctx,
+			sourceName,
+			sourceUrl,
+			tx,
+		)
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+
+		if sourceInst == nil {
+			log.Printf("No new data for %v\n", sourceName)
+		} else {
+			defer sourceInst.Data.Close()
+			log.Printf("New data for %v\n", sourceName)
+
+			if !clearedTable {
+				if _, err = tx.ExecContext(ctx, "DELETE FROM representative_term"); err != nil {
+					err = errors.Wrap(err, "Failed to delete")
+					tx.Rollback()
+					return
+				}
+				clearedTable = true
+			}
+
+			if err = addRepData(ctx, tx, sourceInst); err != nil {
+				tx.Rollback()
+				return
+			}
+		}
+
+		// commit DB transaction
+		if err = tx.Commit(); err != nil {
+			tx.Rollback()
+			return
+		}
 	}
 
-	// get source
-	sourceInst, err := sourceinst.FetchHttpSourceIfChanged(
-		ctx,
-		gRepSourceName,
-		gRepSourceUrl,
-		tx,
-	)
-	if err != nil {
-		return err
-	}
-
-	if sourceInst == nil {
-		log.Printf("No new data for %v\n", gRepSourceName)
-	} else {
-		log.Printf("New data for %v\n", gRepSourceName)
-		addRepData(ctx, tx, sourceInst)
-		defer sourceInst.Data.Close()
-	}
-
-	// commit DB transaction
-	if err = tx.Commit(); err != nil {
-		return err
-	}
-
-	return err
+	return
 }

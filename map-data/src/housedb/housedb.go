@@ -24,6 +24,9 @@ CREATE TABLE IF NOT EXISTS source(
 
 CREATE TABLE IF NOT EXISTS representative_term(
 	bioguide TEXT NOT NULL, /* Unique ID of person */
+	first_name TEXT NOT NULL,
+	middle_name TEXT,
+	last_name TEXT NOT NULL,
 	district_nbr INTEGER, /* NULL == unknown or at-large */
 	at_large BOOL, /* NULL == unknown */
     state VARCHAR(2) NOT NULL, /* Two-digit state FIPS code */
@@ -121,10 +124,15 @@ func Connect(ctx context.Context) Db {
 
 	// load data
 	for _, f := range gLoadDataFuncs {
+		tries := 0
 	again:
 		if err := f(ctx, db); err != nil {
 			if errIsDbLocked(err) {
 				time.Sleep(3 * time.Second)
+				tries++
+				if tries > 10 {
+					panic("Can't unlock DB")
+				}
 				goto again
 			}
 			panic(err)
@@ -152,8 +160,8 @@ func (self *Db) Close() {
 
 func (self *Db) NbrReps(ctx context.Context, congress int) int {
 	res, err := self.db.Query(
-		`SELECT COUNT(*) FROM representative_term WHERE congress = ? AND
-		start_date = (SELECT MIN(start_date) FROM representative_term WHERE congress = ?)`,
+		`SELECT COUNT(*) FROM representative_term WHERE congress_nbr = ? AND
+		start_date = (SELECT MIN(start_date) FROM representative_term WHERE congress_nbr = ?)`,
 		congress, congress)
 	if err != nil {
 		panic(err)
@@ -167,6 +175,28 @@ func (self *Db) NbrReps(ctx context.Context, congress int) int {
 	}
 	res.Close()
 	return nbr
+}
+
+func (self *Db) MeanVotersPerRegDistrict(ctx context.Context, congress int) *float64 {
+	q := `
+	SELECT AVG(dt.turnout)
+	FROM district_turnout dt LEFT OUTER JOIN irregular_state ir 
+	ON (dt.state = ir.state AND dt.congress_nbr = ir.congress_nbr)
+	WHERE ir.state IS NULL AND dt.congress_nbr = ?
+	`
+	res, err := self.db.QueryContext(ctx, q, congress)
+	if err != nil {
+		panic(err)
+	}
+	defer res.Close()
+	if !res.Next() {
+		return nil
+	}
+	var avg *float64
+	if err := res.Scan(&avg); err != nil {
+		panic(err)
+	}
+	return avg
 }
 
 type irregType struct {

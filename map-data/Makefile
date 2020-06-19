@@ -27,6 +27,7 @@ MARK_IRREG = ${TMP}/mark-irregular
 PROCESS_DISTRICTS = ${TMP}/process-districts
 REDUCE_PRECISION = ${TMP}/reduce-precision
 UPLOAD = ${TMP}/upload
+COMP_STATS = ${TMP}/compute-stats
 PROGRAMS = \
 	${ADD_DIST_POP} \
 	${ADD_LABELS} \
@@ -36,7 +37,8 @@ PROGRAMS = \
 	${MARK_IRREG_STATES} \
 	${PROCESS_DISTRICTS} \
 	${REDUCE_PRECISION} \
-	${UPLOAD}
+	${UPLOAD} \
+	${COMP_STATS}
 
 TIPPECANOE_OPTS = --force -z 10 -Z 0 --read-parallel --no-line-simplification -r1 -pk -pf
 # -b0 causes lines at tile borders
@@ -51,6 +53,7 @@ include states.mk
 include districts.mk
 include styles.mk
 include uploading.mk
+include stats.mk
 
 #################################################
 # MAIN RECIPES
@@ -67,6 +70,9 @@ build-districts: ${DISTRICT_TILES}
 
 .PHONY: build-styles
 build-styles: ${STYLES}
+
+.PHONY: build-stats
+build-stats: ${STATS}
 
 .PHONY: upload
 upload: upload-states upload-districts upload-styles
@@ -87,4 +93,4 @@ upload-styles: ${STYLES_UPLOADED}
 .PHONY: clean
 clean: clean-programs
 	rm -rf "${TMP}"/*.geojson "${TMP}"/*.mbtiles "${TMP}"/*.tmp *_start_year \
-		$(patsubst %,${TMP}/%,${PROGRAMS}) ${STYLES} ${OUTPUT}
+		$(patsubst %,${TMP}/%,${PROGRAMS}) ${STYLES} ${OUTPUT} ${STATS}

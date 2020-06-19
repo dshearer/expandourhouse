@@ -256,9 +256,9 @@ func makeTuftsRawDb(ctx context.Context, source *sourceinst.SourceInst) (*rawDb,
 		inserted++
 	}
 
-	log.Printf("skippedBcOfType: %v\n", skippedBcOfType)
-	log.Printf("skippedBcOfLocality: %v\n", skippedBcOfLocality)
-	log.Printf("inserted: %v\n", inserted)
+	// log.Printf("skippedBcOfType: %v\n", skippedBcOfType)
+	// log.Printf("skippedBcOfLocality: %v\n", skippedBcOfLocality)
+	// log.Printf("inserted: %v\n", inserted)
 
 	// flush to DB
 	if err := inserter.Flush(); err != nil {
