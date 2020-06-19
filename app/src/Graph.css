@@ -1,0 +1,19 @@
+.axisVoters line, .axisVoters path, .lineVoters {
+    stroke: steelblue;
+}
+
+.axisNbrReps line, .axisNbrReps path, .lineNbrReps {
+    stroke: red;
+}
+
+.axisVoters text, .axisVotersLabel {
+    fill: steelblue;
+}
+
+.axisNbrReps text, .axixNbrRepsLabel {
+    fill: red;
+}
+
+.lineMissing {
+    stroke: #ccc;
+}

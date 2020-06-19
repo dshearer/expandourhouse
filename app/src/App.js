@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 import _ from 'lodash';
 import {Map} from './Map.js';
+import {Graph} from './Graph.js';
 import CONGRESS_NBR_TO_STYLE_ID from './congressNbrToStyleId';
 import {ordinal} from './utils.js';
 import './App.css';
@@ -36,6 +37,7 @@ class App extends Component {
       <div className="App">
         {picker}
         <Map congress={this.state.congress} />
+        <Graph />
       </div>
     );
   }

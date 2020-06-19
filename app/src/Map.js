@@ -3,6 +3,8 @@ import mapboxgl from 'mapbox-gl';
 import {ShowErrors} from './Alerts';
 import {ordinal} from './utils.js';
 import CONGRESS_NBR_TO_STYLE_ID from './congressNbrToStyleId';
+import {congressStartYear} from './congress.js';
+import './Map.css';
 
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiZHNoZWFyZXIiLCJhIjoiY2syam1qaThuMTEzazNsbnZxNHhidnZqcyJ9.Q0wOV0EePfEaRyw1oEK3UA';
 
@@ -10,12 +12,6 @@ mapboxgl.accessToken = MAPBOX_TOKEN;
 
 function numberWithCommas(x) {
     return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-}
-
-const gFirstCongressStartYear = 1789;
-
-function congressStartYear(congress) {
-    return gFirstCongressStartYear + 2*(congress-1);
 }
 
 class Map extends Component {
