@@ -510,7 +510,7 @@
             "metadata": {"mapbox:group": "1444934295202.7542"},
             "source": "composite",
             "source-layer": "districts",
-            "minzoom": 3,
+            "minzoom": 5,
             "maxzoom": 9,
             "filter": [
                 "all",
@@ -520,7 +520,8 @@
                   ["label"],
                   true,
                   false
-                ]
+                ],
+                ["!", ["has", "turnout"]]
               ],
             "layout": {
                 "text-size": [
@@ -556,7 +557,7 @@
                     ["get", "titleLong"]
                   ],
                 "text-letter-spacing": 0.15,
-                "text-max-width": 6
+                "text-max-width": 10
             },
             "paint": {
                 "text-halo-width": 1,
@@ -570,7 +571,7 @@
             "metadata": {"mapbox:group": "1444934295202.7542"},
             "source": "composite",
             "source-layer": "districts",
-            "minzoom": 3,
+            "minzoom": 5,
             "maxzoom": 9,
             "filter": [
                 "all",
@@ -614,19 +615,79 @@
                     ["zoom"],
                     "",
                     5,
+                    ["get", "titleLong"]
+                  ],
+                "text-letter-spacing": 0.15,
+                "text-max-width": 10,
+                "text-allow-overlap": true,
+                "text-offset": [0, -0.75]
+            },
+            "paint": {
+                "text-halo-width": 1,
+                "text-halo-color": "hsl(0, 0%, 100%)",
+                "text-color": "hsl(0, 0%, 29%)"
+            }
+        },
+        {
+            "id": "nbr-voters",
+            "type": "symbol",
+            "metadata": {"mapbox:group": "1444934295202.7542"},
+            "source": "composite",
+            "source-layer": "districts",
+            "minzoom": 5,
+            "maxzoom": 9,
+            "filter": [
+                "all",
+                [
+                  "match",
+                  ["get", "group"],
+                  ["label"],
+                  true,
+                  false
+                ],
+                ["has", "turnout"]
+              ],
+            "layout": {
+                "text-size": [
+                    "interpolate",
+                    [
+                      "cubic-bezier",
+                      0.85,
+                      0.7,
+                      0.65,
+                      1
+                    ],
+                    ["zoom"],
+                    5,
+                    6,
+                    9,
+                    [
+                      "step",
+                      ["get", "symbolrank"],
+                      24,
+                      3,
+                      14,
+                      6,
+                      18
+                    ]
+                  ],
+                "text-transform": "none",
+                "text-font": ["DIN Offc Pro Regular", "Arial Unicode MS Regular"],
+                "text-field": [
+                    "step",
+                    ["zoom"],
+                    "",
+                    5,
                     [
                       "concat",
-                      ["get", "titleLong"],
-                      " (",
-                      [
-                        "to-string",
-                        ["get", "turnout"]
-                      ],
-                      ")"
+                      ["get", "turnout"],
+                      " voters"
                     ]
                   ],
                 "text-letter-spacing": 0.15,
-                "text-max-width": 6
+                "text-max-width": 10,
+                "text-allow-overlap": true,
+                "text-offset": [0, 0.75]
             },
             "paint": {
                 "text-halo-width": 1,
