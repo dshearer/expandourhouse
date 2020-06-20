@@ -13,6 +13,7 @@ import (
 	"github.com/paulmach/orb/geojson"
 	"github.com/vladimirvivien/automi/collectors"
 	"github.com/vladimirvivien/automi/stream"
+	"golang.org/x/text/message"
 )
 
 func main() {
@@ -47,7 +48,8 @@ func main() {
 				return f
 			}
 			os.Stderr.WriteString(fmt.Sprintf("Got turnout for %v-%v (%v)\n", state, district, congressNbr))
-			f.Properties["turnout"] = *turnout
+			p := message.NewPrinter(message.MatchLanguage("en"))
+			f.Properties["turnout"] = p.Sprint(*turnout)
 			return f
 		}).
 
