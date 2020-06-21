@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS representative_term(
 	CONSTRAINT district_nbr_at_large CHECK ((district_nbr IS NOT NULL) == (at_large IS FALSE))
 );
 
-CREATE TABLE IF NOT EXISTS district_turnout(
+CREATE TABLE IF NOT EXISTS tufts_district_turnout(
 	district_nbr INTEGER NOT NULL, /* 0 == at-large */
     state VARCHAR(2) NOT NULL, /* Two-digit state FIPS code */
 	congress_nbr INTEGER NOT NULL,
@@ -50,6 +50,22 @@ CREATE TABLE IF NOT EXISTS district_turnout(
 	CONSTRAINT district_nbr_is_nonneg CHECK (district_nbr >= 0),
 	CONSTRAINT turnout_is_nonneg CHECK (district_nbr >= 0)
 );
+
+CREATE TABLE IF NOT EXISTS harvard_district_turnout(
+	district_nbr INTEGER NOT NULL, /* 0 == at-large */
+    state VARCHAR(2) NOT NULL, /* Two-digit state FIPS code */
+	congress_nbr INTEGER NOT NULL,
+	turnout INTEGER NOT NULL,
+	
+	UNIQUE (district_nbr, state, congress_nbr),
+	CONSTRAINT district_nbr_is_nonneg CHECK (district_nbr >= 0),
+	CONSTRAINT turnout_is_nonneg CHECK (district_nbr >= 0)
+);
+
+CREATE VIEW IF NOT EXISTS district_turnout AS
+SELECT * FROM tufts_district_turnout
+UNION
+SELECT * FROM harvard_district_turnout;
 
 CREATE VIEW IF NOT EXISTS state_with_overlapping_terms AS
 SELECT DISTINCT t1.state, t1.congress_nbr

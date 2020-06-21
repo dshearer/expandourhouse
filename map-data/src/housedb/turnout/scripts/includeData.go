@@ -56,7 +56,7 @@ func writeDataVar(varName string, in io.Reader, out *os.File) {
 func main() {
 
 	// open data files
-	tuftsIn, err := os.Open("tufts-all-votes-congress-3.tsv")
+	tuftsIn, err := os.Open("good-tufts-data.csv")
 	if err != nil {
 		panic(err)
 	}

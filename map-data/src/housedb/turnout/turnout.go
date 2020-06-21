@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"log"
 
+	"expandourhouse.com/mapdata/bulkInserter"
 	"expandourhouse.com/mapdata/housedb/sourceinst"
 )
 
@@ -20,7 +21,33 @@ var gTableCols = [...]string{
 	"turnout",
 }
 
-const gTableName = "district_turnout"
+const gTuftsTurnoutTable = "tufts_district_turnout"
+
+func addTuftsData(ctx context.Context, tx *sql.Tx, source *sourceinst.SourceInst) error {
+	// delete old data
+	if _, err := tx.ExecContext(ctx, "DELETE FROM "+gTuftsTurnoutTable); err != nil {
+		return err
+	}
+
+	inserter := bulkInserter.Make(ctx, tx, gTuftsTurnoutTable, gTableCols[:])
+	reader := newTurnoutReader(source, ',')
+	for {
+		rec := reader.Read()
+		if rec == nil {
+			break
+		}
+		values := []interface{}{
+			*rec.GetInt("district"),
+			*rec.Get("state"),
+			*rec.GetInt("congress_nbr"),
+			*rec.GetInt("vote"),
+		}
+		if err := inserter.Insert(values); err != nil {
+			return err
+		}
+	}
+	return inserter.Flush()
+}
 
 func AddTurnoutData(ctx context.Context, db *sql.DB) error {
 	var tx *sql.Tx
@@ -35,7 +62,7 @@ func AddTurnoutData(ctx context.Context, db *sql.DB) error {
 	}()
 
 	// make transaction
-	tx, err = db.BeginTx(ctx, nil)
+	tx, err = db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: false})
 	if err != nil {
 		return err
 	}
@@ -73,7 +100,7 @@ func AddTurnoutData(ctx context.Context, db *sql.DB) error {
 	}
 
 	// make transaction
-	tx, err = db.BeginTx(ctx, nil)
+	tx, err = db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: false})
 	if err != nil {
 		return err
 	}
@@ -109,24 +136,24 @@ func AddTurnoutData(ctx context.Context, db *sql.DB) error {
 		return err
 	}
 
-	// make transaction
-	tx, err = db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
+	// // make transaction
+	// tx, err = db.BeginTx(ctx, nil)
+	// if err != nil {
+	// 	return err
+	// }
 
-	// remove anomalous entries that can't be accurate
-	log.Println("Deleting anomalous turnout data")
-	q := `DELETE FROM district_turnout WHERE turnout < 10`
-	_, err = tx.ExecContext(ctx, q)
-	if err != nil {
-		return err
-	}
+	// // remove anomalous entries that can't be accurate
+	// log.Println("Deleting anomalous turnout data")
+	// q := `DELETE FROM district_turnout WHERE turnout < 10`
+	// _, err = tx.ExecContext(ctx, q)
+	// if err != nil {
+	// 	return err
+	// }
 
-	// commit DB transaction
-	if err = tx.Commit(); err != nil {
-		return err
-	}
+	// // commit DB transaction
+	// if err = tx.Commit(); err != nil {
+	// 	return err
+	// }
 
 	return err
 }

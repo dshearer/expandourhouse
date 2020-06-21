@@ -162,7 +162,7 @@ func AddRepData(ctx context.Context, db *sql.DB) (err error) {
 		sourceUrl := pair[1]
 
 		// start transaction
-		tx, err = db.BeginTx(ctx, nil)
+		tx, err = db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: false})
 		if err != nil {
 			return
 		}

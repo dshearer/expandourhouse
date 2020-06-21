@@ -16,12 +16,19 @@ type recKey struct {
 	congress int
 }
 
+const gHarvardTurnoutTable = "harvard_district_turnout"
+
 func addHarvardData(ctx context.Context, tx *sql.Tx, source *sourceinst.SourceInst) error {
 	// make reader
 	reader := newTurnoutReader(source, ',')
 
+	// delete old data
+	if _, err := tx.ExecContext(ctx, "DELETE FROM "+gHarvardTurnoutTable); err != nil {
+		return err
+	}
+
 	// make bulk-inserter
-	inserter := bulkInserter.Make(ctx, tx, gTableName, gTableCols[:])
+	inserter := bulkInserter.Make(ctx, tx, gHarvardTurnoutTable, gTableCols[:])
 
 	seenRecs := make(map[recKey]bool)
 
