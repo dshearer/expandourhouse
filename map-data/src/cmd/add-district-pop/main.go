@@ -19,6 +19,7 @@ import (
 func main() {
 	log.SetOutput(os.Stderr)
 	ctx := context.Background()
+	nbrPrinter := message.NewPrinter(message.MatchLanguage("en"))
 
 	// parse args
 	flag.Parse()
@@ -48,8 +49,8 @@ func main() {
 				return f
 			}
 			os.Stderr.WriteString(fmt.Sprintf("Got turnout for %v-%v (%v)\n", state, district, congressNbr))
-			p := message.NewPrinter(message.MatchLanguage("en"))
-			f.Properties["turnout"] = p.Sprint(*turnout)
+			f.Properties["turnout"] = *turnout
+			f.Properties["turnoutStr"] = nbrPrinter.Sprint(*turnout)
 			return f
 		}).
 

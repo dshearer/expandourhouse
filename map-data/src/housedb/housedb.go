@@ -63,9 +63,9 @@ CREATE TABLE IF NOT EXISTS harvard_district_turnout(
 );
 
 CREATE VIEW IF NOT EXISTS district_turnout AS
-SELECT * FROM tufts_district_turnout
+SELECT * FROM tufts_district_turnout WHERE turnout > 10
 UNION
-SELECT * FROM harvard_district_turnout;
+SELECT * FROM harvard_district_turnout WHERE turnout > 10;
 
 CREATE VIEW IF NOT EXISTS state_with_overlapping_terms AS
 SELECT DISTINCT t1.state, t1.congress_nbr
@@ -121,8 +121,9 @@ func errIsDbLocked(err error) bool {
 }
 
 type Db struct {
-	db *sql.DB
-	tx *sql.Tx
+	db                      *sql.DB
+	tx                      *sql.Tx
+	medianVotersPerDistrict map[int]float64
 }
 
 func Connect(ctx context.Context) Db {
@@ -175,6 +176,10 @@ func (self *Db) Close() {
 }
 
 func (self *Db) NbrReps(ctx context.Context, congress int) int {
+	if congress >= 61 {
+		return 435
+	}
+
 	res, err := self.db.Query(
 		`SELECT COUNT(*) FROM representative_term WHERE congress_nbr = ? AND
 		start_date = (SELECT MIN(start_date) FROM representative_term WHERE congress_nbr = ?)`,
@@ -193,26 +198,101 @@ func (self *Db) NbrReps(ctx context.Context, congress int) int {
 	return nbr
 }
 
-func (self *Db) MeanVotersPerRegDistrict(ctx context.Context, congress int) *float64 {
+func median(values []int) float64 {
+	mid := len(values) / 2
+	if len(values)%2 == 0 {
+		return (float64(values[mid-1]) + float64(values[mid])) / float64(2)
+	} else {
+		return float64(values[mid])
+	}
+}
+
+func (self *Db) precomputeMedianVotersPerRegDistrict(ctx context.Context) {
+	if self.medianVotersPerDistrict != nil {
+		return
+	}
+
 	q := `
-	SELECT AVG(dt.turnout)
+	SELECT dt.congress_nbr, dt.turnout
 	FROM district_turnout dt LEFT OUTER JOIN irregular_state ir 
 	ON (dt.state = ir.state AND dt.congress_nbr = ir.congress_nbr)
-	WHERE ir.state IS NULL AND dt.congress_nbr = ?
+	WHERE ir.state IS NULL
+	ORDER BY dt.congress_nbr, dt.turnout ASC
 	`
+	res, err := self.db.QueryContext(ctx, q)
+	if err != nil {
+		panic(err)
+	}
+	defer res.Close()
+
+	// organize turnouts by congress
+	turnoutMap := make(map[int][]int)
+	for res.Next() {
+		var congress int
+		var turnout int
+		if err := res.Scan(&congress, &turnout); err != nil {
+			panic(err)
+		}
+		array, ok := turnoutMap[congress]
+		if !ok {
+			array = nil
+			turnoutMap[congress] = array
+		}
+		turnoutMap[congress] = append(turnoutMap[congress], turnout)
+	}
+
+	// compute medians
+	self.medianVotersPerDistrict = make(map[int]float64)
+	for congress, turnout := range turnoutMap {
+		self.medianVotersPerDistrict[congress] = median(turnout)
+	}
+}
+
+func (self *Db) MedianVotersPerRegDistrict(ctx context.Context, congress int) (float64, bool) {
+	self.precomputeMedianVotersPerRegDistrict(ctx)
+	val, ok := self.medianVotersPerDistrict[congress]
+	if !ok {
+		return 0, false
+	}
+	return val, true
+}
+
+func (self *Db) _STATVotersPerRegDistrict(ctx context.Context, congress int, stat string) (float64, bool) {
+	q := `
+	SELECT %s(dt.turnout)
+	FROM district_turnout dt
+	WHERE dt.state NOT IN (SELECT state FROM irregular_state WHERE congress_nbr = $1)
+	AND dt.congress_nbr = $1
+	`
+	q = fmt.Sprintf(q, stat)
 	res, err := self.db.QueryContext(ctx, q, congress)
 	if err != nil {
 		panic(err)
 	}
 	defer res.Close()
 	if !res.Next() {
-		return nil
+		return 0, false
 	}
 	var avg *float64
 	if err := res.Scan(&avg); err != nil {
 		panic(err)
 	}
-	return avg
+	if avg == nil {
+		return 0, false
+	}
+	return *avg, true
+}
+
+func (self *Db) MinVotersPerRegDistrict(ctx context.Context, congress int) (float64, bool) {
+	return self._STATVotersPerRegDistrict(ctx, congress, "MIN")
+}
+
+func (self *Db) MaxVotersPerRegDistrict(ctx context.Context, congress int) (float64, bool) {
+	return self._STATVotersPerRegDistrict(ctx, congress, "MAX")
+}
+
+func (self *Db) MeanVotersPerRegDistrict(ctx context.Context, congress int) (float64, bool) {
+	return self._STATVotersPerRegDistrict(ctx, congress, "AVG")
 }
 
 type irregType struct {
@@ -220,18 +300,45 @@ type irregType struct {
 	table string
 }
 
-var gIrregTypes = []irregType{
-	irregType{
-		name:  "Both at-large and on-at-large districts",
-		table: "state_with_atlarge_and_nonatlarge_districts",
-	},
-	irregType{
-		name:  "Districts have multiple reps",
-		table: "state_with_overlapping_terms",
-	},
+var gAtLargeAndNonAtLarge = irregType{
+	name:  "Both at-large and non-at-large districts",
+	table: "state_with_atlarge_and_nonatlarge_districts",
 }
 
+var gOverlappingTerms = irregType{
+	name:  "Districts have multiple reps",
+	table: "state_with_overlapping_terms",
+}
+
+var gIrregTypes = []irregType{gAtLargeAndNonAtLarge, gOverlappingTerms}
+
 func stateIsIrregular(db *sql.DB, state string, congressNbr int, it irregType) (bool, error) {
+	/*
+		Uniform Congressional District Act was passed in 1967 (90th Congress).
+		It exempted New Mexico and Hawaii. (Source: http://centerforpolitics.org/crystalball/articles/multi-member-legislative-districts-just-a-thing-of-the-past/)
+
+		90th Congress: New Mexico and Hawaii had two at-large reps
+		91th Congress: Hawaii had two at-large reps
+
+		After that, all districts were regular. (Source: Wikipedia)
+	*/
+
+	if congressNbr == 90 {
+		if it == gOverlappingTerms && (state == "NM" || state == "HI") {
+			return true, nil
+		}
+		return false, nil
+	}
+	if congressNbr == 91 {
+		if it == gOverlappingTerms && state == "HI" {
+			return true, nil
+		}
+		return false, nil
+	}
+	if congressNbr >= 92 {
+		return false, nil
+	}
+
 	sql := fmt.Sprintf("SELECT COUNT(*) FROM %v WHERE state = $1 AND congress_nbr = $2", it.table)
 	rows, err := db.Query(sql, state, congressNbr)
 	if err != nil {

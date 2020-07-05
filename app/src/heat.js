@@ -1,7 +1,6 @@
 const HOTTEST_HUE = 0; // red
 const COOLEST_HUE = 225; // blue
-const MIN_TURNOUT = 203;
-const MAX_TURNOUT = 444230;
+const MIN_TURNOUT = 0;
 
 /*
     Let c = COOLEST_HUE, h = HOTTEST_HUE, t = MIN_TURNOUT, T = MAX_TURNOUT, x = turnout
@@ -57,16 +56,23 @@ Therefore:
     H = turnout * K + L
 */
 
-const K = (COOLEST_HUE - HOTTEST_HUE)/(MIN_TURNOUT - MAX_TURNOUT);
-const L = COOLEST_HUE - MIN_TURNOUT * K;
+class Heat {
+    constructor(maxTurnout) {
+        this.maxTurnout = maxTurnout;
+        this.K = (COOLEST_HUE - HOTTEST_HUE)/(MIN_TURNOUT - maxTurnout);
+        this.L = COOLEST_HUE - MIN_TURNOUT * this.K;
 
-function hue(turnout) {
-    return turnout * K + L;
+        console.assert(this.hue(MIN_TURNOUT) === COOLEST_HUE);
+        console.assert(this.hue(maxTurnout) === HOTTEST_HUE);
+    }
+
+    hue(turnout) {
+        return Math.round(turnout * this.K + this.L);
+    }
+
+    styleFormula() {
+        return ["+", ["*", ["get", "turnout"], this.K], this.L];
+    }
 }
 
-console.assert(hue(MIN_TURNOUT) === COOLEST_HUE);
-console.assert(hue(MAX_TURNOUT) === HOTTEST_HUE);
-
-const STYLE_FORMULA = ["+", ["*", ["get", "turnout"], K], L];
-
-export {COOLEST_HUE, HOTTEST_HUE, MIN_TURNOUT, MAX_TURNOUT, hue, STYLE_FORMULA};
+export {COOLEST_HUE, HOTTEST_HUE, MIN_TURNOUT, Heat};

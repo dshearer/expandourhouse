@@ -3,8 +3,8 @@
 #
 # Use these to control for which congresses we will generate map data.
 ###############################################################################
-FIRST_CONGRESS = 100
-LAST_CONGRESS = 100
+FIRST_CONGRESS = 113
+LAST_CONGRESS = 113
 
 # derived params
 CONGRESSES = $(shell seq -f '%03g' ${FIRST_CONGRESS} ${LAST_CONGRESS})
@@ -15,6 +15,7 @@ COORD_PRECISION = 6
 
 # dirs
 TMP = ${PWD}/.tmp
+DOWNLOADS = ${PWD}/.downloads
 OUTPUT = ${PWD}/output
 
 # programs

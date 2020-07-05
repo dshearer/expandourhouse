@@ -49,7 +49,7 @@ func addHarvardData(ctx context.Context, tx *sql.Tx, source *sourceinst.SourceIn
 		if rec.Get("stage") == nil ||
 			*rec.Get("stage") != "gen" ||
 			rec.Get("runoff") == nil ||
-			*rec.Get("runoff") != "FALSE" ||
+			(*rec.Get("runoff") != "FALSE" && *rec.Get("runoff") != "NA") ||
 			rec.Get("special") == nil ||
 			*rec.Get("special") != "FALSE" {
 			continue

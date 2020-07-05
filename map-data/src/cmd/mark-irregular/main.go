@@ -42,15 +42,6 @@ func main() {
 	strm.
 		Map(func(f *geojson.Feature) *geojson.Feature {
 			stateAbbr := f.Properties["state"].(string)
-
-			/*
-				All Congresses since the 90th are regular.
-			*/
-			if congressNbr > 90 {
-				f.Properties["irregular"] = false
-				return f
-			}
-
 			irregHow := db.StateIrregularities(ctx, stateAbbr, congressNbr)
 			f.Properties["irregular"] = len(irregHow) > 0
 			if len(irregHow) > 0 {

@@ -1,3 +1,23 @@
+body {
+  counter-reset: footnotecounter;
+}
+
+.footnote:before {
+  counter-increment: footnotecounter;
+  content: counter(footnotecounter);
+  position: relative;
+  top: -0.4em;
+}
+
+.footnote {
+    color: #24B1E6;
+}
+
+.tooltip-inner {
+  text-align: left !important;
+  font-size: 85%;
+}
+
 .App {
   margin-left: 20px;
   margin-right: 20px;

@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import mapboxgl from 'mapbox-gl';
-import {ordinal} from './utils.js';
-import {STYLE_FORMULA as HUE_STYLE_FORMULA} from './heat.js';
+import numeral from 'numeral';
+import {Heat} from './heat.js';
 import {HeatKey} from './HeatKey.js';
 import './Map.css';
 
@@ -11,8 +11,6 @@ mapboxgl.accessToken = MAPBOX_TOKEN;
 
 const gNbrVotersLayerName = 'nbr-voters';
 const gHighlightStateLayerName = 'highlight-state';
-const gDistrictLabelLayerName = 'district-label';
-const gStateLabelLayerName = 'state-label';
 
 const gDistrictBoundaryLayer = {
     "id": "district-boundary",
@@ -261,78 +259,7 @@ function nbrVotersLayer(state) {
     return layer;
 }
 
-function districtLabelLayer(state) {
-    const layer = {
-        "id": gDistrictLabelLayerName,
-        "type": "symbol",
-        "metadata": {"mapbox:group": "1444934295202.7542"},
-        "source": "composite",
-        "source-layer": "districts",
-        "minzoom": 5,
-        "maxzoom": 9,
-        "filter": [
-            "all",
-            [
-              "match",
-              ["get", "group"],
-              ["label"],
-              true,
-              false
-            ],
-            ["has", "turnout"]
-          ],
-        "layout": {
-            "text-size": [
-                "interpolate",
-                [
-                  "cubic-bezier",
-                  0.85,
-                  0.7,
-                  0.65,
-                  1
-                ],
-                ["zoom"],
-                5,
-                10,
-                9,
-                [
-                  "step",
-                  ["get", "symbolrank"],
-                  24,
-                  6,
-                  18,
-                  7,
-                  14
-                ]
-              ],
-            "text-transform": "none",
-            "text-font": ["DIN Offc Pro Regular", "Arial Unicode MS Regular"],
-            "text-field": [
-                "step",
-                ["zoom"],
-                "",
-                5,
-                ["get", "titleLong"]
-              ],
-            "text-letter-spacing": 0.15,
-            "text-max-width": 10,
-            "text-allow-overlap": true,
-            "text-offset": [0, -0.75]
-        },
-        "paint": {
-            "text-halo-width": 1,
-            "text-halo-color": "hsl(0, 0%, 100%)",
-            "text-color": "hsl(0, 0%, 29%)"
-        }
-    };
-    if (state) {
-        layer.filter.push(["match", ["get", "state"], [state], true, false]);
-    }
-    return layer;
-}
-
-function districtBackgroundLayer(state) {
-
+function districtBackgroundLayer(hueStyleFormula) {
     const layer = {
         "id": gHighlightStateLayerName,
         "type": "fill",
@@ -353,22 +280,23 @@ function districtBackgroundLayer(state) {
             "fill-color": [
                 "concat",
                 "hsl(",
-                ["to-string", HUE_STYLE_FORMULA],
+                ["to-string", hueStyleFormula],
                 ", 100%, 50%)",
             ],
             "fill-opacity": 0.2,
             "fill-antialias": false
         },
     };
-    if (state) {
-        layer.filter.push(["match", ["get", "state"], [state], true, false]);
-    }
     return layer;
 }
 
 class Map extends Component {
     getZoom() {
-        return 0.0044 * this.props.width + 0.432;
+        var v = 0.0044 * this.props.width + 0.432;
+        if (this.props.zoom) {
+            v += this.props.zoom;
+        }
+        return v;
     }
 
     componentDidUpdate() {
@@ -391,6 +319,9 @@ class Map extends Component {
             zoom: this.getZoom(),
             minZoom: this.getZoom(),
         };
+        if (this.props.center) {
+            opts.center = this.props.center;
+        }
         this.map = new mapboxgl.Map(opts);
 
         this.map.setStyle('mapbox://styles/dshearer/ckbu2kkj1030b1io3jfo1ykiq');
@@ -412,12 +343,16 @@ class Map extends Component {
             this.map.addLayer(gStateBoundaryBgLayer);
             this.map.addLayer(gStateBoundaryLayer);
             this.map.addLayer(gDistrictBoundaryLayer);
-            this.map.addLayer(districtBackgroundLayer());
+            this.map.addLayer(districtBackgroundLayer(new Heat(this.props.maxTurnout).styleFormula()));
             this.map.addLayer(nbrVotersLayer());
     
             this.highlightedState = this.props.highlightState;
         });
-        window.map = this.map;
+
+        if (!window.maps) {
+            window.maps = [];
+        }
+        window.maps.push(this.map);
     }
 
     componentWillUnmount() {
@@ -435,11 +370,11 @@ class Map extends Component {
         return (
             <figure className="map figure" style={figureStyle}>
                 <div ref={el => this.mapContainer = el} style={mapStyle} />
-                <HeatKey width={this.props.width} />
+                <HeatKey width={this.props.width} maxTurnout={this.props.maxTurnout} />
                 <figcaption className="figure-caption text-center">
-                Number of voters per district for
-                the {ordinal(this.props.congress)} Congress.<br />
-                (Zoom in to see the numbers.)</figcaption>
+                Heatmap of number of voters per district for
+                the {numeral(this.props.congress).format('0o')} Congress. (Zoom in to see
+                the numbers.)</figcaption>
             </figure>
         );
     }

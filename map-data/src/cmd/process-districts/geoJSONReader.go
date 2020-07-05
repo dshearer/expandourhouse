@@ -27,9 +27,23 @@ func (r *geoJSONReader) read() {
 
 	// parse json
 	var collect geojson.FeatureCollection
-	if err := r.decoder.Decode(&collect); err != nil {
+	var tmp map[string]interface{}
+	if err := r.decoder.Decode(&tmp); err != nil {
 		log.Panic(err)
 	}
+	tmpFeatures := tmp["features"].([]interface{})
+	for _, tf := range tmpFeatures {
+		bytes, err := json.Marshal(tf)
+		if err != nil {
+			panic(err)
+		}
+		feature, err := geojson.UnmarshalFeature(bytes)
+		if err != nil {
+			continue
+		}
+		collect.Append(feature)
+	}
+	collect.Type = tmp["type"].(string)
 
 	features := collect.Features
 	for len(features) > 0 {

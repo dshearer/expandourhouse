@@ -1,52 +1,58 @@
 import React, { Component } from 'react';
 import _ from 'lodash';
 import * as d3 from 'd3';
-import $ from 'jquery';
-import {COOLEST_HUE, HOTTEST_HUE, MIN_TURNOUT, MAX_TURNOUT, hue} from './heat.js';
+import {MIN_TURNOUT, Heat} from './heat.js';
 
-const NBR_SLOTS = 8;
-const TURNOUTS = [];
-for (let i = 0; i < NBR_SLOTS; ++i) {
-    const range = MAX_TURNOUT - MIN_TURNOUT;
-    const delta = range/NBR_SLOTS;
-    const t = (i + 1) * delta;
-    TURNOUTS.push(t);
-}
+const NBR_SLOTS = 10;
+const MARGIN = 25;
+const BORDER_WIDTH = 1;
 
 class HeatKey extends Component {
     constructor(props) {
         super(props);
-        this.state = {width: 0};
+
+        this.turnouts = [];
+        const range = this.props.maxTurnout - MIN_TURNOUT;
+        const delta = range/NBR_SLOTS;
+        for (let i = 0; i <= NBR_SLOTS; ++i) {
+            const t = i * delta;
+            this.turnouts.push(t);
+        }
     }
 
     componentDidMount() {
-        console.assert(this.g);
-        const turnouts = d3.scaleLinear()
-            .domain([d3.min(TURNOUTS), d3.max(TURNOUTS)])
-            .range([0, this.props.width]);
-        d3.select(this.g).call(d3.axisBottom(turnouts));
+        this.drawNumberLine();
     }
 
-    componentWillUnmount() {
-        window.removeEventListener("resize", this.updateSize);
-    }
-
-    updateSize = () => {
-        if (!this.container) {
+    drawNumberLine() {
+        if (!this.g) {
             return;
         }
-        this.setState({ width: $(this.container).width() });
-    };
+
+        // remove existing SVG
+        const g = d3.select(this.g);
+        g.selectAll('*').remove();
+
+        // draw it
+        const turnouts = d3.scaleLinear()
+            .domain([d3.min(this.turnouts), d3.max(this.turnouts)])
+            .range([MARGIN + BORDER_WIDTH, this.props.width - MARGIN - BORDER_WIDTH]);
+        g.call(d3.axisBottom(turnouts));
+    }
 
     render() {
         // make background gradient
-        const colors = TURNOUTS.map(t => `hsl(${hue(t)}, 100%, 50%)`);
+        const heat = new Heat(this.props.maxTurnout);
+        const colors = this.turnouts.map(t => `hsl(${heat.hue(t)}, 100%, 50%)`);
         const bgColorCss = `linear-gradient(to right, ${_.join(colors, ', ')})`;
         const keyStyle = {
             background: bgColorCss,
-            border: '1px solid black',
+            border: `${BORDER_WIDTH}px solid black`,
             height: '10px',
+            marginLeft: MARGIN,
+            marginRight: MARGIN,
         };
+        this.drawNumberLine();
         return (
             <div style={{width: this.props.width}}>
                 <div className="heat-key" style={keyStyle} />

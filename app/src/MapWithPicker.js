@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import mapboxgl from 'mapbox-gl';
+import numeral from 'numeral';
 import _ from 'lodash';
-import {ordinal} from './utils.js';
 import CONGRESS_NBR_TO_STYLE_ID from './congressNbrToStyleId';
 import {startYearForCongress} from './congress.js';
 import {Map} from './Map.js';
@@ -32,7 +32,7 @@ class MapWithPicker extends Component {
 
     render() {
         const pickerOpts = this.sortedCongressNbrs.map(n => {
-          return (<option key={n} value={n}>{ordinal(n)} Congress ({startYearForCongress(n)})</option>);
+          return (<option key={n} value={n}>{numeral(n).format('0o')} Congress ({startYearForCongress(n)})</option>);
         });
         const picker = (
           <select value={this.state.congress} onChange={this.handleSelectCongress}>

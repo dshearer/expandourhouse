@@ -8,10 +8,12 @@
 
 .axisVoters text, .axisVotersLabel {
     fill: steelblue;
+    font-size: 0.75rem;
 }
 
 .axisNbrReps text, .axisNbrRepsLabel {
     fill: red;
+    font-size: 0.75rem;
 }
 
 .lineMissing {

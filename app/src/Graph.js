@@ -7,7 +7,7 @@ const _ = require('lodash');
 
 function isPresElectYear(year) {
     const delta = year - 1789;
-    return delta%4 == 0;
+    return delta%4 === 0;
 }
 
 const gMargin = {top: 10, right: 50, bottom: 40, left: 70};
@@ -30,7 +30,7 @@ class Graph extends Component {
             .filter(congress => parseInt(congress) >= minCongress)
             .filter(congress => parseInt(congress) <= maxCongress)
             .map(congress => {
-                const rec = CongressStats[congress];
+                const rec = Object.assign({}, CongressStats[congress]);
                 const year = startYearForCongress(parseInt(congress));
                 rec.year = d3.timeParse('%Y')(year);
                 rec.isPresElect = isPresElectYear(year);
@@ -42,7 +42,7 @@ class Graph extends Component {
             .domain(d3.extent(data, d => d.year))
             .range([ 0, adjWidth ]);
         const votersY = d3.scaleLinear()
-            .domain([0, d3.max(data, d => d.voters)]).nice()
+            .domain([0, d3.max(data, d => d.medianVoters)]).nice()
             .range([ adjHeight, 0 ]);
         const nbrRepsY = d3.scaleLinear()
             .domain([0, d3.max(data, d => d.nbrReps)]).nice()
@@ -52,17 +52,15 @@ class Graph extends Component {
             .x(d => x(d.year))
             .y(d => nbrRepsY(d.nbrReps));
 
-        const svg = d3.select(this.axisYear);
-
         // make the axes
         d3.select(this.axisYear).call(d3.axisBottom(x));
         d3.select(this.axisVoters).call(d3.axisLeft(votersY));
-        d3.select(this.axisNbrReps).call(d3.axisLeft(nbrRepsY));
+        d3.select(this.axisNbrReps).call(d3.axisRight(nbrRepsY));
 
         const votersLine = d3.line()
-            .defined(d => d.voters !== undefined)
+            .defined(d => d.medianVoters !== undefined)
             .x(d => x(d.year))
-            .y(d => votersY(d.voters));
+            .y(d => votersY(d.medianVoters));
         d3.select(this.lineVotersMissing)
             .datum(data.filter(votersLine.defined()))
             .attr("d", votersLine);
@@ -100,14 +98,14 @@ class Graph extends Component {
                         textAnchor="middle"
                         x={-adjHeight/2}
                         y={-gMargin.left}
-                        dy="1em"># of voters per rep</text>
+                        dy="1em">Median turnout per congressperson</text>
 
                     <text className="axisNbrRepsLabel" 
                         transform="rotate(90)"
                         textAnchor="middle"
                         x={adjHeight/2}
-                        y={-adjWidth - 35}
-                        dy="1em"># of reps</text>
+                        y={-adjWidth - 55}
+                        dy="1em">Number of congresspeople</text>
 
                     <path className="lineMissing" fill="none"
                         ref={el => this.lineVotersMissing = el} />
