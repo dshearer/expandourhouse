@@ -1,3 +1,7 @@
-canvas:focus {
+.map canvas:focus {
     outline: none;
+}
+
+.mapboxgl-canvas {
+    border: 1px solid grey;
 }

@@ -1,147 +1,446 @@
 import React, { Component } from 'react';
 import mapboxgl from 'mapbox-gl';
-import {ShowErrors} from './Alerts';
 import {ordinal} from './utils.js';
-import CONGRESS_NBR_TO_STYLE_ID from './congressNbrToStyleId';
-import {congressStartYear} from './congress.js';
+import {STYLE_FORMULA as HUE_STYLE_FORMULA} from './heat.js';
+import {HeatKey} from './HeatKey.js';
 import './Map.css';
 
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiZHNoZWFyZXIiLCJhIjoiY2syam1qaThuMTEzazNsbnZxNHhidnZqcyJ9.Q0wOV0EePfEaRyw1oEK3UA';
 
 mapboxgl.accessToken = MAPBOX_TOKEN;
 
-function numberWithCommas(x) {
-    return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+const gNbrVotersLayerName = 'nbr-voters';
+const gHighlightStateLayerName = 'highlight-state';
+const gDistrictLabelLayerName = 'district-label';
+const gStateLabelLayerName = 'state-label';
+
+const gDistrictBoundaryLayer = {
+    "id": "district-boundary",
+    "type": "line",
+    "metadata": {"mapbox:group": "1444934295202.7542"},
+    "source": "districts",
+    "source-layer": "districts",
+    "filter": [
+        "all",
+        [
+          "match",
+          ["get", "group"],
+          ["boundary"],
+          true,
+          false
+        ]
+      ],
+    "layout": {"line-join": "round", "line-cap": "round"},
+    "paint": {
+        "line-dasharray": [
+            "step",
+            ["zoom"],
+            ["literal", [2, 0]],
+            7,
+            ["literal", [2, 2, 6, 2]]
+        ],
+        "line-width": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            7,
+            0.75,
+            12,
+            1.5
+        ],
+        "line-opacity": ["step", ["zoom"], 0, 5, 1],
+        "line-color": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            3,
+            "hsl(0, 0%, 80%)",
+            7,
+            "hsl(0, 0%, 70%)"
+        ]
+    }
+};
+
+const gStateBoundaryLayer = {
+    "id": "admin-1-boundary",
+    "type": "line",
+    "metadata": {"mapbox:group": "1444934295202.7542"},
+    "source": "states",
+    "source-layer": "states",
+    "filter": [
+        "all",
+        [
+            "match",
+            ["get", "group"],
+            ["boundary"],
+            true,
+            false
+        ]
+        ],
+    "layout": {"line-join": "round", "line-cap": "round"},
+    "paint": {
+        "line-dasharray": [
+            "step",
+            ["zoom"],
+            ["literal", [2, 0]],
+            7,
+            ["literal", [2, 2, 6, 2]]
+        ],
+        "line-width": 2,
+        "line-opacity": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            2,
+            0,
+            3,
+            1
+        ],
+        "line-color": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            3,
+            "hsl(0, 0%, 80%)",
+            7,
+            "hsl(0, 0%, 70%)"
+        ]
+    }
+};
+
+const gStateBoundaryBgLayer = {
+    "id": "admin-1-boundary-bg",
+    "type": "line",
+    "metadata": {"mapbox:group": "1444934295202.7542"},
+    "source": "states",
+    "source-layer": "states",
+    "filter": [
+        "all",
+        [
+            "match",
+            ["get", "group"],
+            ["boundary"],
+            true,
+            false
+        ]
+        ],
+    "layout": {"line-join": "bevel"},
+    "paint": {
+        "line-blur": ["interpolate", ["linear"], ["zoom"], 3, 0, 8, 3],
+        "line-width": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            7,
+            3.75,
+            12,
+            5.5
+        ],
+        "line-opacity": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            7,
+            0,
+            8,
+            0.75
+        ],
+        "line-dasharray": [1, 0],
+        "line-translate": [0, 0],
+        "line-color": "hsl(0, 0%, 84%)"
+    }
+};
+
+const gStateLabelLayer = {
+    "id": "state-label",
+    "type": "symbol",
+    "source": "states",
+    "source-layer": "states",
+    "minzoom": 3,
+    "maxzoom": 5,
+    "filter": [
+        "all",
+        [
+            "match",
+            ["get", "group"],
+            ["label"],
+            true,
+            false
+        ]
+        ],
+    "layout": {
+        "text-size": [
+            "interpolate",
+            ["cubic-bezier", 0.85, 0.7, 0.65, 1],
+            ["zoom"],
+            4,
+            ["step", ["get", "symbolrank"], 10, 6, 9.5, 7, 9],
+            9,
+            ["step", ["get", "symbolrank"], 24, 6, 18, 7, 14]
+        ],
+        "text-transform": "uppercase",
+        "text-font": ["DIN Offc Pro Bold", "Arial Unicode MS Bold"],
+        "text-field": ["get", "titleShort"],
+        "text-letter-spacing": 0.15,
+        "text-max-width": 6
+    },
+    "paint": {
+        "text-halo-width": 1,
+        "text-halo-color": "hsl(0, 0%, 100%)",
+        "text-color": "hsl(0, 0%, 66%)"
+    }
+};
+
+function nbrVotersLayer(state) {
+    const layer = {
+        "id": gNbrVotersLayerName,
+        "type": "symbol",
+        "metadata": {"mapbox:group": "1444934295202.7542"},
+        "source": "districts",
+        "source-layer": "districts",
+        "minzoom": 5,
+        "maxzoom": 9,
+        "filter": [
+            "all",
+            [
+              "match",
+              ["get", "group"],
+              ["label"],
+              true,
+              false
+            ],
+            ["has", "turnout"]
+          ],
+        "layout": {
+            "text-size": [
+                "interpolate",
+                [
+                  "cubic-bezier",
+                  0.85,
+                  0.7,
+                  0.65,
+                  1
+                ],
+                ["zoom"],
+                5,
+                10,
+                9,
+                [
+                  "step",
+                  ["get", "symbolrank"],
+                  24,
+                  3,
+                  14,
+                  6,
+                  18
+                ]
+              ],
+            "text-transform": "none",
+            "text-font": ["DIN Offc Pro Regular", "Arial Unicode MS Regular"],
+            "text-field": [
+                "step",
+                ["zoom"],
+                "",
+                5,
+                ["get", "turnoutStr"]
+              ],
+            "text-letter-spacing": 0.15,
+            "text-max-width": 10,
+            "text-allow-overlap": true,
+            "text-offset": [0, 0.75]
+        },
+        "paint": {
+            "text-halo-width": 1,
+            "text-halo-color": "hsl(0, 0%, 100%)",
+            "text-color": "hsl(0, 0%, 29%)"
+        }
+    };
+    if (state) {
+        layer.filter.push(["match", ["get", "state"], [state], true, false]);
+    }
+    return layer;
+}
+
+function districtLabelLayer(state) {
+    const layer = {
+        "id": gDistrictLabelLayerName,
+        "type": "symbol",
+        "metadata": {"mapbox:group": "1444934295202.7542"},
+        "source": "composite",
+        "source-layer": "districts",
+        "minzoom": 5,
+        "maxzoom": 9,
+        "filter": [
+            "all",
+            [
+              "match",
+              ["get", "group"],
+              ["label"],
+              true,
+              false
+            ],
+            ["has", "turnout"]
+          ],
+        "layout": {
+            "text-size": [
+                "interpolate",
+                [
+                  "cubic-bezier",
+                  0.85,
+                  0.7,
+                  0.65,
+                  1
+                ],
+                ["zoom"],
+                5,
+                10,
+                9,
+                [
+                  "step",
+                  ["get", "symbolrank"],
+                  24,
+                  6,
+                  18,
+                  7,
+                  14
+                ]
+              ],
+            "text-transform": "none",
+            "text-font": ["DIN Offc Pro Regular", "Arial Unicode MS Regular"],
+            "text-field": [
+                "step",
+                ["zoom"],
+                "",
+                5,
+                ["get", "titleLong"]
+              ],
+            "text-letter-spacing": 0.15,
+            "text-max-width": 10,
+            "text-allow-overlap": true,
+            "text-offset": [0, -0.75]
+        },
+        "paint": {
+            "text-halo-width": 1,
+            "text-halo-color": "hsl(0, 0%, 100%)",
+            "text-color": "hsl(0, 0%, 29%)"
+        }
+    };
+    if (state) {
+        layer.filter.push(["match", ["get", "state"], [state], true, false]);
+    }
+    return layer;
+}
+
+function districtBackgroundLayer(state) {
+
+    const layer = {
+        "id": gHighlightStateLayerName,
+        "type": "fill",
+        "source": "districts",
+        "source-layer": "districts",
+        "filter": [
+            "all",
+            [
+              "match",
+              ["get", "group"],
+              ["boundary"],
+              true,
+              false
+            ],
+            ["has", "turnout"],
+        ],
+        "paint": {
+            "fill-color": [
+                "concat",
+                "hsl(",
+                ["to-string", HUE_STYLE_FORMULA],
+                ", 100%, 50%)",
+            ],
+            "fill-opacity": 0.2,
+            "fill-antialias": false
+        },
+    };
+    if (state) {
+        layer.filter.push(["match", ["get", "state"], [state], true, false]);
+    }
+    return layer;
 }
 
 class Map extends Component {
-    constructor(props) {
-        super(props);
-
-        this.state = {
-            congressStartYear: undefined,
-            errors: [],
-        };
-
-        this.handleMapClick = this.handleMapClick.bind(this);
+    getZoom() {
+        return 0.0044 * this.props.width + 0.432;
     }
 
-    styleUrlForCongress(congress) {
-        return 'mapbox://styles/dshearer/' +
-            CONGRESS_NBR_TO_STYLE_ID['' + congress];
-    }
-
-    loadMap() {
-        console.log("Loading map: " + this.props.congress);
-        if (!this.props.congress) {
-            return;
-        }
-        if (!this.map) {
-            this.map = new mapboxgl.Map({
-                container: this.mapContainer,
-                style: this.styleUrlForCongress(this.props.congress),
-            });
-            this.map.on('click', this.handleMapClick);
-        } else {
-            this.map.setStyle(this.styleUrlForCongress(this.props.congress));
+    componentDidUpdate() {
+        if (this.map) {
+            this.map.resize();
+            this.map.setMinZoom(this.getZoom());
+            this.map.setZoom(this.getZoom());
         }
     }
 
     componentDidMount() {
-        mapboxgl.clearStorage();
-        this.loadMap();
+        // mapboxgl.clearStorage();
+
+        const opts = {
+            container: this.mapContainer,
+            maxPitch: 0,
+            touchPitch: false,
+            dragRotate: false,
+            center: [-96.429, 38.3],
+            zoom: this.getZoom(),
+            minZoom: this.getZoom(),
+        };
+        this.map = new mapboxgl.Map(opts);
+
+        this.map.setStyle('mapbox://styles/dshearer/ckbu2kkj1030b1io3jfo1ykiq');
+        
+        this.map.on('style.load', () => {
+            const statesSource = `mapbox://dshearer.states-${this.props.congress}`;
+            const districtsSource = `mapbox://dshearer.districts-${this.props.congress}`;
+
+            this.map.addSource('states', {
+                type: 'vector',
+                url: statesSource,
+            });
+            this.map.addSource('districts', {
+                type: 'vector',
+                url: districtsSource,
+            });
+
+            this.map.addLayer(gStateLabelLayer);
+            this.map.addLayer(gStateBoundaryBgLayer);
+            this.map.addLayer(gStateBoundaryLayer);
+            this.map.addLayer(gDistrictBoundaryLayer);
+            this.map.addLayer(districtBackgroundLayer());
+            this.map.addLayer(nbrVotersLayer());
+    
+            this.highlightedState = this.props.highlightState;
+        });
+        window.map = this.map;
     }
 
     componentWillUnmount() {
         if (this.map) {
             this.map.remove();
+            this.map = undefined;
         }
-    }
-
-    componentDidUpdate(prevProps) {
-        console.log(this.props);
-        console.log('componentDidUpdate ' + this.props.congress + ' ' + prevProps.congress);
-        if (this.props.congress === prevProps.congress) {
-            return;
-        }
-        this.loadMap();
-    }
-
-    handleMapClick(e) {
-        // get features at click location from district layers
-        const features = this.map.queryRenderedFeatures(
-            e.point,
-            { layers: ["irreg-district-bg", "reg-district-bg"]},
-        );
-        console.log(features);
-        if (features.length === 0) {
-            return;
-        }
-        const feature = features[0];
-        console.log('feature:');
-        console.log(feature);
-
-        // get clicked district
-        const districtTitle = feature.properties.titleLong;
-        const turnout = feature.properties.turnout;
-
-        if (!turnout) {
-            return;
-        }
-
-        // Ensure that if the map is zoomed out such that multiple
-        // copies of the feature are visible, the popup appears
-        // over the copy being pointed to.
-        const coords = feature.geometry.coordinates.slice();
-        while (Math.abs(e.lngLat.lng - coords[0]) > 180) {
-            coords[0] += e.lngLat.lng > coords[0] ? 360 : -360;
-        }
-
-        // make popup
-        const html = `
-        <aside>
-            <header>
-            ${districtTitle}
-            </header>
-            <table>
-                <tr><th scope="row">Turnout</th><td>${numberWithCommas(turnout)}</td></tr>
-            </table>
-        </aside>
-        `;
-        new mapboxgl.Popup()
-            .setLngLat(e.lngLat)
-            .setHTML(html)
-            .addTo(this.map);
     }
 
     render() {
-        const containerStyle = {
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'stretch',
-            margin: '2em',
-        };
-        const mapStyle = {
-            // width: '1000px',
-            height: '600px',
-            margin: 0,
-        };
-        const captionStyle = {
-            textAlign: 'center',
-            marginBottom: '1em',
-        };
-
+        const dimensRatio = 2; // width/height
+        const height = this.props.width/dimensRatio;
+        const figureStyle = {width: this.props.width};
+        const mapStyle = {width: this.props.width, height: height};
         return (
-            <div>
-                <ShowErrors errors={this.state.errors} />
-                <div style={containerStyle}>
-                    <figure style={mapStyle} ref={el => this.mapContainer = el}>
-                        <figcaption style={captionStyle}>
-                            {ordinal(this.props.congress)} Congress ({congressStartYear(this.props.congress)})
-                        </figcaption>
-                    </figure>
-                </div>
-            </div>
+            <figure className="map figure" style={figureStyle}>
+                <div ref={el => this.mapContainer = el} style={mapStyle} />
+                <HeatKey width={this.props.width} />
+                <figcaption className="figure-caption text-center">
+                Number of voters per district for
+                the {ordinal(this.props.congress)} Congress.<br />
+                (Zoom in to see the numbers.)</figcaption>
+            </figure>
         );
     }
 }

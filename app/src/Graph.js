@@ -1,112 +1,126 @@
 import React, { Component } from 'react';
 import * as d3 from 'd3';
-import STATS from './stats.js';
-import {congressStartYear} from './congress.js';
+import {CongressStats} from './stats.js';
+import {startYearForCongress} from './congress.js';
 import './Graph.css';
 const _ = require('lodash');
 
+function isPresElectYear(year) {
+    const delta = year - 1789;
+    return delta%4 == 0;
+}
+
+const gMargin = {top: 10, right: 50, bottom: 40, left: 70};
+
 class Graph extends Component {
     componentDidMount() {
-        const margin = {top: 10, right: 50, bottom: 40, left: 70},
-            width = 1060 - margin.left - margin.right,
-            height = 400 - margin.top - margin.bottom;
+        const adjWidth = 500 - gMargin.left - gMargin.right;
+        const adjHeight = 250 - gMargin.top - gMargin.bottom;
 
         // prepare data
-        const data = _.keys(STATS).map(congress => {
-            const rec = STATS[congress];
-            rec.year = d3.timeParse('%Y')(congressStartYear(parseInt(congress)));
-            return rec;
-        });
+        var minCongress = this.props.minCongress;
+        if (minCongress === undefined) {
+            minCongress = 1
+        }
+        var maxCongress = this.props.maxCongress;
+        if (maxCongress === undefined) {
+            maxCongress = 1000;
+        }
+        const data = _.keys(CongressStats)
+            .filter(congress => parseInt(congress) >= minCongress)
+            .filter(congress => parseInt(congress) <= maxCongress)
+            .map(congress => {
+                const rec = CongressStats[congress];
+                const year = startYearForCongress(parseInt(congress));
+                rec.year = d3.timeParse('%Y')(year);
+                rec.isPresElect = isPresElectYear(year);
+                return rec;
+            });
 
         // make the lines
         const x = d3.scaleUtc()
             .domain(d3.extent(data, d => d.year))
-            .range([ 0, width ]);
+            .range([ 0, adjWidth ]);
         const votersY = d3.scaleLinear()
             .domain([0, d3.max(data, d => d.voters)]).nice()
-            .range([ height, 0 ]);
+            .range([ adjHeight, 0 ]);
         const nbrRepsY = d3.scaleLinear()
             .domain([0, d3.max(data, d => d.nbrReps)]).nice()
-            .range([ height, 0 ]);
-        const votersLine = d3.line()
-            .defined(d => d.voters !== undefined)
-            .x(d => x(d.year))
-            .y(d => votersY(d.voters));
+            .range([ adjHeight, 0 ]);
         const nbrRepsLine = d3.line()
             .defined(d => d.nbrReps !== undefined)
             .x(d => x(d.year))
             .y(d => nbrRepsY(d.nbrReps));
 
-        const svg = d3.select(this.container)
-            .append("svg")
-            .attr("width", width + margin.left + margin.right)
-            .attr("height", height + margin.top + margin.bottom)
-            .append("g")
-            .attr("transform",  "translate(" + margin.left + "," + margin.top + ")");
+        const svg = d3.select(this.axisYear);
 
         // make the axes
-        svg.append("g")
-            .attr("transform", "translate(0," + height + ")")
-            .call(d3.axisBottom(x));
-        svg.append("g")
-            .attr("class", "axisVoters")
-            .call(d3.axisLeft(votersY));
-        svg.append("g")
-            .attr("class", "axisNbrReps")
-            .attr("transform", "translate(" + width + ", 0)")
-            .call(d3.axisRight(nbrRepsY));
+        d3.select(this.axisYear).call(d3.axisBottom(x));
+        d3.select(this.axisVoters).call(d3.axisLeft(votersY));
+        d3.select(this.axisNbrReps).call(d3.axisLeft(nbrRepsY));
 
-        // make the axis labels
-        svg.append("text")             
-            .attr("transform",
-                    "translate(" + (width/2) + " ," + 
-                                (height + margin.top + 25) + ")")
-            .style("text-anchor", "middle")
-            .text("Year");
-        svg.append("text")
-            .attr("class", "axisVotersLabel")
-            .attr("transform", "rotate(-90)")
-            .attr("y", 0 - margin.left)
-            .attr("x", 0 - (height / 2))
-            .attr("dy", "1em")
-            .style("text-anchor", "middle")
-            .text("Nbr of voters per district");    
-        svg.append("text")
-            .attr("class", "axixNbrRepsLabel")
-            .attr("transform", "rotate(90)")
-            .attr("y", -width - 35)
-            .attr("x", height / 2)
-            // .attr("dy", "1em")
-            .style("text-anchor", "middle")
-            .text("Nbr of congresspeople");     
-
-        svg.append("path")
+        const votersLine = d3.line()
+            .defined(d => d.voters !== undefined)
+            .x(d => x(d.year))
+            .y(d => votersY(d.voters));
+        d3.select(this.lineVotersMissing)
             .datum(data.filter(votersLine.defined()))
-            .attr("class", "lineMissing")
-            .attr("fill", "none")
             .attr("d", votersLine);
-
-        svg.append("path")
+        d3.select(this.lineVoters)
             .datum(data)
-            .attr("class", "lineVoters")
-            .attr("fill", "none")
             .attr("d", votersLine);
 
-        svg.append("path")
+        d3.select(this.lineNbrRepsMissing)
             .datum(data.filter(nbrRepsLine.defined()))
-            .attr("class", "lineMissing")
-            .attr("fill", "none")
             .attr("d", nbrRepsLine);
-
-        svg.append("path")
+        d3.select(this.lineNbrReps)
             .datum(data)
-            .attr("class", "lineNbrReps")
-            .attr("fill", "none")
             .attr("d", nbrRepsLine);
     }
 
     render() {
-        return (<div ref={el => this.container = el}></div>);
+        const adjWidth = 500 - gMargin.left - gMargin.right;
+        const adjHeight = 250 - gMargin.top - gMargin.bottom;
+
+        return (
+            <svg width={this.props.width} 
+                height={this.props.height} viewBox="0 0 500 250">
+                <g transform={`translate(${gMargin.left}, ${gMargin.top})`}>
+                    <g transform={`translate(0, ${adjHeight})`} 
+                        ref={el => this.axisYear = el} />
+
+                    <g className="axisVoters" ref={el => this.axisVoters = el} />
+
+                    <g className="axisNbrReps" 
+                        transform={`translate(${adjWidth}, 0)`} 
+                        ref={el => this.axisNbrReps = el} />
+
+                    <text className="axisVotersLabel" 
+                        transform="rotate(-90)"
+                        textAnchor="middle"
+                        x={-adjHeight/2}
+                        y={-gMargin.left}
+                        dy="1em"># of voters per rep</text>
+
+                    <text className="axisNbrRepsLabel" 
+                        transform="rotate(90)"
+                        textAnchor="middle"
+                        x={adjHeight/2}
+                        y={-adjWidth - 35}
+                        dy="1em"># of reps</text>
+
+                    <path className="lineMissing" fill="none"
+                        ref={el => this.lineVotersMissing = el} />
+                    <path className="lineVoters" fill="none"
+                        ref={el => this.lineVoters = el} />
+                    
+                    <path className="lineMissing" fill="none"
+                        ref={el => this.lineNbrRepsMissing = el} />
+                    <path className="lineNbrReps" fill="none"
+                        ref={el => this.lineNbrReps = el} />
+                </g>
+            </svg>
+        );
     }
 
 }

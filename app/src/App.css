@@ -1,22 +1,52 @@
 .App {
+  margin-left: 20px;
+  margin-right: 20px;
+}
+
+.how-did-it-get-this-way h2 {
   text-align: center;
 }
 
-.App-logo {
-  height: 40vmin;
+.how-did-it-get-this-way .fact {
+  margin-top: 0;
+  font-size: 20px;
+  width: 500px;
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
+.how-did-it-get-this-way .fact.big {
+  font-size: 28px;
+}
+
+.how-did-it-get-this-way .figure {
+  width: 600px;
+}
+
+.story {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
 }
 
-.App-link {
-  color: #09d3ac;
+.story-part {
+  display: flex;
+  flex-direction: row-reverse;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.story-part .mapboxgl-map {
+  height: 250px;
+  width: 550px;
+}
+
+.graph {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+figcaption {
+  font-size: 12px;
 }
